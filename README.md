@@ -1,36 +1,80 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# hx-pal 🩺
 
-## Getting Started
+**hx-pal** (History-Pal) is an intelligent medical history-taking assistant designed to guide medical students through the critical process of clinical interviewing. It ensures that no vital information is missed, helps structure clinical reasoning, and provides a polished summary with potential differential diagnoses.
 
-First, run the development server:
+---
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## 🌟 Key Features
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 1. Dual-Assistance Modes
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- **💡 Hint-Assisted Mode**:
+  - Designed for experienced students.
+  - Provides non-intrusive real-time feedback (e.g., "You've gathered great info on the HPI, but don't forget to check the character of the pain").
+  - Enables students to drive the conversation while keeping a "safety net" in the background.
+- **🚀 Fully-Assisted Mode**:
+  - Designed for junior students.
+  - Proactively suggests the "Next Best Question" or "Next Critical Step" based on the current stage and patient profile.
+  - Guides the user step-by-step through the standard medical sequence.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### 2. Standardized Medical Sequence
 
-## Learn More
+The tool follows the universal clinical clerkship structure:
 
-To learn more about Next.js, take a look at the following resources:
+1.  **Biodata** (Age, Gender, Occupation, etc.)
+2.  **Chief Complaint (CC)**
+3.  **History of Presenting Illness (HPI)**
+4.  **Past Medical History (PMH)**
+5.  **Drug History & Allergies (DH)**
+6.  **Family History (FH)**
+7.  **Social History (SH)**
+8.  **Review of Systems (ROS)**
+9.  **Summary & Differentials**
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### 3. Intelligent Analysis
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- **Real-time Logic**: Automatically triggers specific checklists (e.g., SOCRATES for pain, 5Ps for sexual history) based on user input.
+- **Summary Generation**: Transforms messy notes into a professional medical report.
+- **Differential Diagnosis (DDx)**: Provides ranked likely diagnoses based on findings.
 
-## Deploy on Vercel
+---
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## 🛠 Tech Stack
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+| Category             | Technology                                      |
+| :------------------- | :---------------------------------------------- |
+| **Framework**        | Next.js 15+ (App Router)                        |
+| **Styling**          | Vanilla CSS / Tailwind CSS (Glass UI Aesthetic) |
+| **State Management** | React Context / Zustand                         |
+| **Intelligence**     | Gemini / OpenAI (LLM for Clinical Reasoning)    |
+| **Components**       | Radix UI / Shadcn (for accessibility and speed) |
+| **Deployment**       | Vercel                                          |
+
+---
+
+## 🚀 Execution Plan
+
+### Phase 1: Core Scaffolding (Current)
+
+- [x] Configure Project & MCP settings.
+- [ ] Implement the **Stage Manager** (Multi-step flow engine).
+- [ ] Build the **Glass UI** layout (Workspace + Assistant Panel).
+- [ ] Define shared medical types and data structures.
+
+### Phase 2: Intelligence Layer
+
+- [ ] Implement local rule-based triggers for basic checklists.
+- [ ] Integrate AI API for "Hints" and "Dynamic Questioning".
+- [ ] Build the "Summary & DDx" generator.
+
+### Phase 3: Polish & Export
+
+- [ ] Mobile-responsive optimization for ward rounds.
+- [ ] PDF/Text export for student portfolios.
+- [ ] Local storage persistence for session recovery.
+
+---
+
+## 📖 How to Use (For AI Assistants)
+
+This project uses the Model Context Protocol (MCP). See [MCP.md](file:///c:/Users/hp/Desktop/hx-pal/MCP.md) for details on how to use AI to build components directly using the Glass UI registry.

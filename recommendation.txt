@@ -1,0 +1,8 @@
+My Recommendation for hx-pal
+Start with a Structured UI as the foundation, then plug in AI for the "intelligence" layers.
+
+Proposed Architecture:
+
+Stage Manager: A multi-step form engine (Next.js) that ensures the student follows the sequence.
+Live Workspace: A side panel where the student types or selects findings.
+The "Pal" (AI Layer): A small LLM call that runs at the end of each stage to say: "You've gathered great info on the HPI, but don't forget to check the character of the pain before moving to PMH."
