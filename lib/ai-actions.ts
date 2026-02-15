@@ -30,9 +30,12 @@ export async function generateClinicalSummary(session: HistorySession) {
       contents: prompt,
     });
     return response.text || 'No summary generated.';
-  } catch (error) {
+  } catch (error: any) {
     console.error('Gemini Summary Error:', error);
-    return 'Error generating summary. Please check your AI configuration.';
+    const errorMessage = error?.error?.message || error?.message;
+    return errorMessage
+      ? `Error generating summary: ${errorMessage}`
+      : 'Error generating summary. Please check your AI configuration.';
   }
 }
 
@@ -91,7 +94,7 @@ export async function getRealTimeHint(session: HistorySession) {
       contents: prompt,
     });
     return response.text || 'Continue with the next steps.';
-  } catch (error) {
+  } catch (error: any) {
     console.error('Gemini Hint Error:', error);
     return 'Continue with the current stage.';
   }
@@ -114,34 +117,31 @@ export async function analyzeHPC(
     You are speaking to a **medical student/doctor**. 
     The data below belongs to a **patient** (Name: ${context.biodata?.name || 'Unknown'}, Age: ${context.biodata?.age || 'Unknown'}, Sex: ${context.biodata?.gender || 'Unknown'}).
     
-    Current HPC Data (5 Cs framework):
+    Current FOCUS: You are analyzing the characterization of the following specific complaint: **${complaint}**.
+    
+    Current HPC Data for this complaint (5 Cs framework):
     ${JSON.stringify(currentHpc, null, 2)}
 
     Patient Context:
     - Biodata: ${JSON.stringify(context.biodata, null, 2)}
-    - Presenting Complaints List: ${JSON.stringify(context.presentingComplaints, null, 2)}
-    - Other HPC Data (if any): ${JSON.stringify(context.otherHpcData, null, 2)}
+    - Full List of Presenting Complaints: ${JSON.stringify(context.presentingComplaints, null, 2)}
+    - Other HPC Data already collected: ${JSON.stringify(context.otherHpcData, null, 2)}
     
     Tasks:
-    1. Check if the "Character" description is adequate (especially if SOCRATES was used).
-    2. Identify any missing critical information based on the complaint type.
-    3. Provide 1-2 specific suggestions to improve the history taking.
+    1. Specifically assess if the characterization of **${complaint}** is adequate (e.g., using SOCRATES or 5 Cs).
+    2. Identify any missing critical information **only for ${complaint}**.
+    3. Provide 1-2 specific suggestions to improve the history taking for **this specific complaint**.
     
-    IMPORTANT: 
-    - Address the user as "student" or "doctor" or just directly, NEVER by the patient's name.
-    - Do NOT include any differential diagnoses.
-    - Do NOT suggest questions for future stages like PMH, DH, SH, FH.
-    - **Exception**: You MAY ask about Review of Systems (ROS) ONLY if it is directly related to the presenting complaint (e.g., asking about reflux symptoms for a cough, or urinary symptoms for abdominal pain).
-    - Do NOT conduct a full unrelated systemic review.
+    CRITICAL RESTRICTIONS:
+    - **Focus Only**: Do NOT jump ahead to other complaints in the list (e.g., if analyzing "Headache", do not suggest questions for "Cough" or "Chest Pain" unless they are associated symptoms directly linked to the headache).
+    - **No Forethought**: Do NOT ask for characterization of other presenting complaints that the student hasn't started yet.
+    - **Student Context**: Address the user as "student" or "doctor". Do NOT use the patient's name to address the user.
+    - **No Differentials**: Do NOT include any differential diagnoses.
+    - **No Future Stages**: Do NOT suggest questions for PMH, DH, SH, FH.
     - **Context Awareness**: Do NOT ask for information that is already present in the "Patient Context".
-    - Focus on the attributes of the complaint (5 Cs / SOCRATES) and associated symptoms.
-    - Use Markdown formatting:
-      - Use **bold** for key terms.
-      - Use bullet points for lists.
-      - Use ### for headers (e.g., ### 1. Assessment, ### 2. Missing Info).
     
-    Keep your response concise and conversational, as if speaking to a medical student.
-    Start with positive reinforcement if the history is good.
+    Use Markdown formatting (### Headers, **bold**, bullet points).
+    Keep your response concise and conversational.
   `;
 
   try {
@@ -150,9 +150,12 @@ export async function analyzeHPC(
       contents: prompt,
     });
     return result.text as string;
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error analyzing HPC:', error);
-    return 'Sorry, I encountered an error while analyzing the history. Please check your API key and try again.';
+    const errorMessage = error?.error?.message || error?.message;
+    return errorMessage
+      ? `AI Error: ${errorMessage}`
+      : 'Sorry, I encountered an error while analyzing the history. Please check your API key and try again.';
   }
 }
 
@@ -197,9 +200,12 @@ export async function analyzeROS(rosData: any, context: any) {
       contents: prompt,
     });
     return result.text as string; // Casting to string to be safe if linter is confused
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error analyzing ROS:', error);
-    return 'Sorry, I encountered an error while analyzing the ROS. Please check your API key and try again.';
+    const errorMessage = error?.error?.message || error?.message;
+    return errorMessage
+      ? `AI Error: ${errorMessage}`
+      : 'Sorry, I encountered an error while analyzing the ROS. Please check your API key and try again.';
   }
 }
 
@@ -229,9 +235,12 @@ export async function analyzePMH(data: string, context?: any) {
       contents: prompt,
     });
     return result.text as string;
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error analyzing PMH:', error);
-    return 'Unable to analyze PMH at this time.';
+    const errorMessage = error?.error?.message || error?.message;
+    return errorMessage
+      ? `AI Error: ${errorMessage}`
+      : 'Unable to analyze PMH at this time.';
   }
 }
 
@@ -263,9 +272,12 @@ export async function analyzeDH(data: string, context?: any) {
       contents: prompt,
     });
     return result.text as string;
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error analyzing DH:', error);
-    return 'Unable to analyze Drug History at this time.';
+    const errorMessage = error?.error?.message || error?.message;
+    return errorMessage
+      ? `AI Error: ${errorMessage}`
+      : 'Unable to analyze Drug History at this time.';
   }
 }
 
@@ -296,9 +308,12 @@ export async function analyzeFH(data: string, context?: any) {
       contents: prompt,
     });
     return result.text as string;
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error analyzing FH:', error);
-    return 'Unable to analyze Family History at this time.';
+    const errorMessage = error?.error?.message || error?.message;
+    return errorMessage
+      ? `AI Error: ${errorMessage}`
+      : 'Unable to analyze Family History at this time.';
   }
 }
 
@@ -328,8 +343,11 @@ export async function analyzeSH(data: string, context?: any) {
       contents: prompt,
     });
     return result.text as string;
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error analyzing SH:', error);
-    return 'Unable to analyze Social History at this time.';
+    const errorMessage = error?.error?.message || error?.message;
+    return errorMessage
+      ? `AI Error: ${errorMessage}`
+      : 'Unable to analyze Social History at this time.';
   }
 }

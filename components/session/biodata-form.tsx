@@ -25,10 +25,16 @@ import {
 } from '@/components/ui/select';
 import { PatientBiodata } from '@/lib/types';
 import { useSession } from '@/lib/SessionContext';
+import { toast } from 'sonner';
 
 export function BiodataForm() {
   const router = useRouter();
-  const { setBiodata, nextStage, biodata: savedBiodata } = useSession();
+  const {
+    setBiodata,
+    nextStage,
+    biodata: savedBiodata,
+    setIsAnalyzing,
+  } = useSession();
   const [selectedGender, setSelectedGender] = React.useState<string>('');
   const [selectedMaritalStatus, setSelectedMaritalStatus] =
     React.useState<string>('');
@@ -88,7 +94,19 @@ export function BiodataForm() {
 
     console.log('Biodata submitted:', completeData);
     // Save biodata to context (this will also add a custom hint)
+    setIsAnalyzing(true);
     setBiodata(completeData);
+    setIsAnalyzing(false);
+
+    toast.success('Biodata saved');
+
+    // Scroll to hint panel
+    setTimeout(() => {
+      document
+        .getElementById('hx-pal-hint-panel')
+        ?.scrollIntoView({ behavior: 'smooth' });
+    }, 100);
+
     // Navigate to next stage
     nextStage();
   };
@@ -96,7 +114,7 @@ export function BiodataForm() {
   return (
     <form
       onSubmit={handleSubmit(onSubmit)}
-      className='space-y-6 max-w-2xl mx-auto'
+      className='space-y-6 max-w-2xl mx-auto p-4'
     >
       {/* Header */}
       <div className='space-y-2'>
@@ -351,7 +369,7 @@ export function BiodataForm() {
       </div>
 
       {/* Submit Button */}
-      <div className='pt-4 flex gap-4'>
+      <div className='pt-4 flex flex-col sm:flex-row gap-4'>
         <Button
           type='button'
           variant='outline'

@@ -49,6 +49,7 @@ interface SessionContextType {
   rosData: Record<string, string>;
   currentHint: Hint | null;
   hintHistory: Hint[];
+  isAnalyzing: boolean;
   setBiodata: (data: PatientBiodata) => void;
   setPresentingComplaints: (complaints: PresentingComplaint[]) => void;
   setHpcData: (complaintId: string, data: FiveCsData) => void;
@@ -62,6 +63,7 @@ interface SessionContextType {
   nextStage: () => void;
   prevStage: () => void;
   goToStage: (stage: SessionStage) => void;
+  setIsAnalyzing: (isAnalyzing: boolean) => void;
 }
 
 const SessionContext = createContext<SessionContextType | undefined>(undefined);
@@ -142,6 +144,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const [dhData, setDhDataState] = useState<string>(() =>
     loadFromStorage(STORAGE_KEYS.DH_DATA, ''),
   );
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
   // currentHint is derived from hintHistory, so no state needed
   const [hintHistory, setHintHistory] = useState<Hint[]>([
     {
@@ -354,6 +357,8 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       nextStage,
       prevStage,
       goToStage,
+      isAnalyzing,
+      setIsAnalyzing,
     }),
     [
       mode,
@@ -381,6 +386,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       nextStage,
       prevStage,
       goToStage,
+      isAnalyzing,
     ],
   );
 

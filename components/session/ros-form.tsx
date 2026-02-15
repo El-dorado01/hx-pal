@@ -74,6 +74,8 @@ export function RosForm() {
     presentingComplaints,
     hpcData,
     addHint,
+    setIsAnalyzing,
+    isAnalyzing: isAnalyzingGlobal,
   } = useSession();
 
   const [activeSystem, setActiveSystem] = useState<string>('general');
@@ -93,6 +95,7 @@ export function RosForm() {
   const handleAnalyzeStreamlined = async () => {
     try {
       toast.info('Analyzing Review of Systems...');
+      setIsAnalyzing(true);
 
       const context = {
         biodata,
@@ -103,9 +106,18 @@ export function RosForm() {
       const feedback = await analyzeROS(rosData, context);
       addHint(feedback, 'ROS Analysis');
       toast.success('Analysis complete! Check the hint panel.');
+
+      // Scroll to hint panel
+      setTimeout(() => {
+        document
+          .getElementById('hx-pal-hint-panel')
+          ?.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
     } catch (error) {
       toast.error('Failed to analyze ROS');
       console.error(error);
+    } finally {
+      setIsAnalyzing(false);
     }
   };
 
@@ -213,31 +225,32 @@ export function RosForm() {
       </div>
 
       {/* Actions */}
-      <div className='flex items-center justify-between py-6 border-t border-border'>
+      <div className='flex flex-col sm:flex-row items-stretch sm:items-center justify-between py-6 border-t border-border gap-4'>
         <Button
           variant='ghost'
           onClick={prevStage}
-          className='gap-2 text-muted-foreground hover:text-foreground'
+          className='gap-2 text-muted-foreground hover:text-foreground justify-center sm:justify-start'
         >
           <ChevronLeft size={16} />
           Back to History
         </Button>
 
-        <div className='flex gap-3'>
+        <div className='flex flex-col sm:flex-row gap-3 w-full sm:w-auto'>
           <Button
             variant='secondary'
             onClick={handleAnalyzeStreamlined}
-            className='gap-2 shadow-sm font-semibold'
+            disabled={isAnalyzingGlobal}
+            className='gap-2 shadow-sm font-semibold justify-center'
           >
             <Sparkles
               size={16}
               className='text-primary'
             />
-            Analyze ROS
+            {isAnalyzingGlobal ? 'Analyzing...' : 'Analyze ROS'}
           </Button>
           <Button
             onClick={nextStage}
-            className='gap-2 shadow-sm'
+            className='gap-2 shadow-sm justify-center'
           >
             Next: Family History
             <ChevronRight size={16} />

@@ -34,6 +34,8 @@ export function PmhForm() {
     biodata,
     presentingComplaints,
     addHint,
+    setIsAnalyzing,
+    isAnalyzing: isAnalyzingGlobal,
   } = useSession();
   // Wait, useSession doesn't have updateAIContext. I should check how AI is triggered.
   // In ROS form, it uses analyzeROS directly.
@@ -41,7 +43,6 @@ export function PmhForm() {
   const [conditions, setConditions] = useState<PmhCondition[]>([]);
   const [surgicalHistory, setSurgicalHistory] = useState('');
   const [notes, setNotes] = useState('');
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   // Parse pmhData string back to object if possible, or init
   useEffect(() => {
@@ -94,6 +95,8 @@ export function PmhForm() {
     }
 
     setIsAnalyzing(true);
+    toast.info('Analyzing PMH with Pal...');
+
     const dataSummary = `
       Patient Age: ${biodata?.age}, Gender: ${biodata?.gender}
       Conditions: ${conditions
@@ -111,6 +114,13 @@ export function PmhForm() {
       const result = await analyzePMH(dataSummary, context);
       addHint(result, 'PMH Analysis');
       toast.success('Analysis complete! Check the hint panel.');
+
+      // Scroll to hint panel
+      setTimeout(() => {
+        document
+          .getElementById('hx-pal-hint-panel')
+          ?.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
     } catch (error) {
       toast.error('Failed to analyze PMH.');
     } finally {
@@ -233,30 +243,30 @@ export function PmhForm() {
       </div>
 
       {/* Navigation & Actions */}
-      <div className='flex items-center justify-between py-6 border-t border-border'>
+      <div className='flex flex-col sm:flex-row items-stretch sm:items-center justify-between py-6 border-t border-border gap-4'>
         <Button
           variant='ghost'
           onClick={prevStage}
-          className='gap-2'
+          className='gap-2 justify-center sm:justify-start'
         >
           <ChevronLeft size={16} />
           Back
         </Button>
 
-        <div className='flex gap-3'>
+        <div className='flex flex-col sm:flex-row gap-3 w-full sm:w-auto'>
           <Button
             variant='secondary'
             onClick={handleAIAnalysis}
-            disabled={isAnalyzing}
-            className='gap-2 shadow-sm font-semibold'
+            disabled={isAnalyzingGlobal}
+            className='gap-2 shadow-sm font-semibold justify-center'
           >
             <Sparkles className='w-4 h-4 text-primary' />
-            {isAnalyzing ? 'Analyzing...' : 'Analyze PMH'}
+            {isAnalyzingGlobal ? 'Analyzing...' : 'Analyze PMH'}
           </Button>
 
           <Button
             onClick={nextStage}
-            className='gap-2 shadow-sm'
+            className='gap-2 shadow-sm justify-center'
           >
             Next: Drug History
             <ChevronRight size={16} />

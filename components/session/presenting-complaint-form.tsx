@@ -324,7 +324,7 @@ export function PresentingComplaintForm() {
       )}
 
       {/* Navigation Buttons */}
-      <div className='pt-4 flex gap-4'>
+      <div className='pt-4 flex flex-col sm:flex-row gap-4'>
         <Button
           type='button'
           variant='outline'

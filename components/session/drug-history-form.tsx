@@ -41,13 +41,14 @@ export function DrugHistoryForm() {
     pmhData,
     presentingComplaints,
     addHint,
+    setIsAnalyzing,
+    isAnalyzing: isAnalyzingGlobal,
   } = useSession();
 
   const [medications, setMedications] = useState<Medication[]>([]);
   const [allergies, setAllergies] = useState<Allergy[]>([]);
   const [nkda, setNkda] = useState(false);
   const [notes, setNotes] = useState('');
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   // Load data
   useEffect(() => {
@@ -120,6 +121,7 @@ export function DrugHistoryForm() {
 
   const handleAIAnalysis = async () => {
     setIsAnalyzing(true);
+    toast.info('Checking drug interactions...');
 
     // Construct context object
     const context = {
@@ -139,6 +141,13 @@ export function DrugHistoryForm() {
       const result = await analyzeDH(JSON.stringify(dhDataForAI), context);
       addHint(result, 'Interaction Check');
       toast.success('Analysis complete! Check the hint panel.');
+
+      // Scroll to hint panel
+      setTimeout(() => {
+        document
+          .getElementById('hx-pal-hint-panel')
+          ?.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
     } catch (error) {
       toast.error('Failed to analyze Drug History.');
     } finally {
@@ -302,30 +311,30 @@ export function DrugHistoryForm() {
       </div>
 
       {/* Navigation & Actions */}
-      <div className='flex items-center justify-between py-6 border-t border-border'>
+      <div className='flex flex-col sm:flex-row items-stretch sm:items-center justify-between py-6 border-t border-border gap-4'>
         <Button
           variant='ghost'
           onClick={prevStage}
-          className='gap-2'
+          className='gap-2 justify-center sm:justify-start'
         >
           <ChevronLeft size={16} />
           Back to PMH
         </Button>
 
-        <div className='flex gap-3'>
+        <div className='flex flex-col sm:flex-row gap-3 w-full sm:w-auto'>
           <Button
             variant='secondary'
             onClick={handleAIAnalysis}
-            disabled={isAnalyzing}
-            className='gap-2 shadow-sm font-semibold'
+            disabled={isAnalyzingGlobal}
+            className='gap-2 shadow-sm font-semibold justify-center'
           >
             <Sparkles className='w-4 h-4 text-primary' />
-            {isAnalyzing ? 'Checking...' : 'Check Interactions'}
+            {isAnalyzingGlobal ? 'Checking...' : 'Check Interactions'}
           </Button>
 
           <Button
             onClick={nextStage}
-            className='gap-2 shadow-sm'
+            className='gap-2 shadow-sm justify-center'
           >
             Next: Review of Systems
             <ChevronRight size={16} />

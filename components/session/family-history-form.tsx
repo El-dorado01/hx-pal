@@ -35,11 +35,12 @@ export function FamilyHistoryForm() {
     presentingComplaints,
     pmhData,
     addHint,
+    setIsAnalyzing,
+    isAnalyzing: isAnalyzingGlobal,
   } = useSession();
 
   const [relatives, setRelatives] = useState<FamilyMember[]>([]);
   const [notes, setNotes] = useState('');
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   // Load data
   useEffect(() => {
@@ -86,6 +87,7 @@ export function FamilyHistoryForm() {
 
   const handleAIAnalysis = async () => {
     setIsAnalyzing(true);
+    toast.info('Analyzing genogram with Pal...');
 
     const context = {
       biodata,
@@ -103,6 +105,13 @@ export function FamilyHistoryForm() {
       const result = await analyzeFH(dataSummary, context);
       addHint(result, 'Family History Analysis');
       toast.success('Analysis complete! Check the hint panel.');
+
+      // Scroll to hint panel
+      setTimeout(() => {
+        document
+          .getElementById('hx-pal-hint-panel')
+          ?.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
     } catch (error) {
       toast.error('Failed to analyze Family History.');
     } finally {
@@ -223,30 +232,30 @@ export function FamilyHistoryForm() {
       </div>
 
       {/* Navigation & Actions */}
-      <div className='flex items-center justify-between py-6 border-t border-border'>
+      <div className='flex flex-col sm:flex-row items-stretch sm:items-center justify-between py-6 border-t border-border gap-4'>
         <Button
           variant='ghost'
           onClick={prevStage}
-          className='gap-2'
+          className='gap-2 justify-center sm:justify-start'
         >
           <ChevronLeft size={16} />
           Back to ROS
         </Button>
 
-        <div className='flex gap-3'>
+        <div className='flex flex-col sm:flex-row gap-3 w-full sm:w-auto'>
           <Button
             variant='secondary'
             onClick={handleAIAnalysis}
-            disabled={isAnalyzing}
-            className='gap-2 shadow-sm font-semibold'
+            disabled={isAnalyzingGlobal}
+            className='gap-2 shadow-sm font-semibold justify-center'
           >
             <Sparkles className='w-4 h-4 text-primary' />
-            {isAnalyzing ? 'Analyzing...' : 'Analyze Genogram'}
+            {isAnalyzingGlobal ? 'Analyzing...' : 'Analyze Genogram'}
           </Button>
 
           <Button
             onClick={nextStage}
-            className='gap-2 shadow-sm'
+            className='gap-2 shadow-sm justify-center'
           >
             Next: Social History
             <ChevronRight size={16} />

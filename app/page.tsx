@@ -1,9 +1,9 @@
-import HistorySessionContainer from '@/components/history/HistorySession';
+import React from 'react'
 
-export default function Home() {
+const page = () => {
   return (
-    <main>
-      <HistorySessionContainer />
-    </main>
-  );
+    <div>Home Page - Nothing yet!</div> 
+  )
 }
+
+export default page

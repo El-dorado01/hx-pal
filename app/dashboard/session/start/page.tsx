@@ -80,7 +80,8 @@ const STAGE_CONFIG = {
 };
 
 function SessionStartContent() {
-  const { currentHint, hintHistory, currentStage, goToStage } = useSession();
+  const { currentHint, hintHistory, currentStage, goToStage, isAnalyzing } =
+    useSession();
   const stageConfig = STAGE_CONFIG[currentStage as keyof typeof STAGE_CONFIG];
 
   const orderedStages = Object.keys(STAGE_CONFIG).sort(
@@ -155,6 +156,7 @@ function SessionStartContent() {
         <HxPalPanel
           currentHint={currentHint || undefined}
           hintHistory={hintHistory}
+          isAnalyzing={isAnalyzing}
         />
 
         {/* Form - Conditional based on stage */}

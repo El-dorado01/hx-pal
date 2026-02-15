@@ -442,7 +442,7 @@ export function SummaryView() {
               </p>
             </div>
           </div>
-          <div className='flex gap-3'>
+          <div className='flex flex-col sm:flex-row gap-3'>
             <Button
               className='flex-1 gap-2 font-bold uppercase tracking-wider'
               onClick={handleGenerateReport}
@@ -534,21 +534,21 @@ export function SummaryView() {
           />
         </div>
 
-        <div className='pt-12 flex items-center justify-between'>
+        <div className='pt-12 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4'>
           <Button
             variant='ghost'
             size='sm'
-            className='text-destructive hover:bg-destructive/10 gap-2'
+            className='text-destructive hover:bg-destructive/10 gap-2 justify-center sm:justify-start'
             onClick={handleResetSession}
           >
             <RotateCcw className='w-4 h-4' />
             Reset Session Data
           </Button>
 
-          <div className='flex gap-3'>
+          <div className='flex flex-col sm:flex-row gap-3 w-full sm:w-auto'>
             <Button
               variant='outline'
-              className='gap-2'
+              className='gap-2 justify-center'
               disabled={!report}
               onClick={downloadAsDoc}
             >
@@ -556,7 +556,7 @@ export function SummaryView() {
               Download Report (.doc)
             </Button>
             <Button
-              className='gap-2'
+              className='gap-2 justify-center'
               onClick={() => setIsEndDialogOpen(true)}
             >
               <LogOut className='w-4 h-4' />

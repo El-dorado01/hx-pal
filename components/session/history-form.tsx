@@ -104,6 +104,7 @@ export function HistoryForm() {
     nextStage,
     prevStage,
     addHint,
+    setIsAnalyzing,
   } = useSession();
 
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -118,6 +119,8 @@ export function HistoryForm() {
     care: '',
     extraNotes: '',
   });
+
+  const isAnalyzingLocal = useSession().isAnalyzing;
 
   const isPainComplaint = React.useMemo(() => {
     if (!currentComplaint) return false;
@@ -218,6 +221,7 @@ export function HistoryForm() {
       setHpcData(currentComplaint.id, formData);
 
       toast.info('Analyzing HPC with Pal...');
+      setIsAnalyzing(true);
 
       const context = {
         biodata,
@@ -232,9 +236,18 @@ export function HistoryForm() {
       );
       addHint(feedback, 'HPC Analysis');
       toast.success('Analysis complete! Check the hint panel.');
+
+      // Scroll to hint panel
+      setTimeout(() => {
+        document
+          .getElementById('hx-pal-hint-panel')
+          ?.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
     } catch (error) {
       toast.error('Failed to analyze HPC');
       console.error(error);
+    } finally {
+      setIsAnalyzing(false);
     }
   };
 
@@ -254,7 +267,7 @@ export function HistoryForm() {
 
       {/* Current Complaint Banner */}
       <div className='bg-primary/5 border-l-4 border-primary p-4 mb-6'>
-        <div className='flex justify-between items-start'>
+        <div className='flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3'>
           <div>
             <h3 className='text-lg font-bold text-primary mb-1'>
               {currentComplaint.complaint}
@@ -264,7 +277,7 @@ export function HistoryForm() {
             </p>
           </div>
           {isPainComplaint && (
-            <span className='bg-red-100 text-red-700 text-xs font-bold px-2 py-1 rounded-sm uppercase tracking-wide'>
+            <span className='bg-red-100 text-red-700 text-xs font-bold px-2 py-1 rounded-sm uppercase tracking-wide self-start sm:self-auto'>
               Pain Detected - Use SOCRATES
             </span>
           )}
@@ -361,24 +374,24 @@ export function HistoryForm() {
       </div>
 
       {/* Actions */}
-      <div className='flex items-center gap-4 py-6 border-t'>
+      <div className='flex flex-col sm:flex-row items-stretch sm:items-center gap-4 py-6 border-t'>
         <Button
           type='button'
           variant='ghost'
           onClick={handlePrevious}
-          className='flex items-center gap-2'
+          className='flex items-center justify-center gap-2 sm:justify-start'
         >
           <ArrowLeft size={16} />
           {currentIndex === 0 ? 'Back to Complaints' : 'Previous Complaint'}
         </Button>
 
-        <div className='flex-1' />
+        <div className='hidden sm:block flex-1' />
 
         <Button
           type='button'
           variant='secondary'
           onClick={handleAnalyzeWithPal}
-          className='flex items-center gap-2 bg-purple-100 text-purple-700 hover:bg-purple-200 border-purple-200'
+          className='flex items-center justify-center gap-2 bg-purple-100 text-purple-700 hover:bg-purple-200 border-purple-200'
         >
           <BrainCircuit size={16} />
           Analyze with Pal
@@ -387,7 +400,7 @@ export function HistoryForm() {
         <Button
           type='button'
           onClick={handleNext}
-          className='flex items-center gap-2 rounded-none px-8 font-bold uppercase tracking-wider'
+          className='flex items-center justify-center gap-2 rounded-none px-8 font-bold uppercase tracking-wider'
         >
           {currentIndex === presentingComplaints.length - 1
             ? 'Finish HPC'
