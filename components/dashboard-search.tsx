@@ -11,13 +11,16 @@ import {
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { AlertCircle } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from './ui/alert';
+
 
 export function DashboardSearch() {
   return (
     <div className='flex flex-col items-center justify-center w-full max-w-4xl px-4 py-20 mx-auto space-y-12'>
       {/* Logo Section */}
       <div className='flex items-center'>
-        <div className='relative w-24 h-24 overflow-hidden'>
+        <div className='relative w-20 h-20 overflow-hidden'>
           <Image
             src='/logo.png'
             alt='Hx Pal Logo'
@@ -33,8 +36,22 @@ export function DashboardSearch() {
       </div>
 
       {/* Search Bar Container */}
-      <div className='relative w-full'>
-        <div className='flex items-center w-full px-4 py-2 bg-background border border-border rounded-none shadow-sm hover:border-primary/50 transition-colors group focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20'>
+      <div className='relative w-full space-y-6'>
+        <Alert
+          variant='default'
+          className='rounded-none bg-primary/5 border-primary/20'
+        >
+          <AlertCircle className='h-4 w-4 text-primary' />
+          <AlertTitle className='text-primary font-bold'>
+            Coming Soon
+          </AlertTitle>
+          <AlertDescription className='text-muted-foreground'>
+            We're working hard to bring you the full Hx Pal search experience.
+            This feature will be available in the next update.
+          </AlertDescription>
+        </Alert>
+
+        <div className='flex items-center w-full px-4 py-2 bg-muted/50 border border-border rounded-none shadow-sm cursor-not-allowed group opacity-70'>
           {/* Left Icon: Attachment */}
           <Button
             variant='ghost'
@@ -48,7 +65,8 @@ export function DashboardSearch() {
           <input
             type='text'
             placeholder='How can I help you today?'
-            className='flex-1 bg-transparent border-none outline-none px-4 py-2 text-lg text-foreground placeholder:text-muted-foreground'
+            className='flex-1 bg-transparent border-none outline-none px-4 py-2 text-lg text-foreground placeholder:text-muted-foreground cursor-not-allowed'
+            disabled
           />
 
           {/* Right Section: Insights, Expert, Audio */}

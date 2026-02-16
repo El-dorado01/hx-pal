@@ -15,11 +15,15 @@ import { Lightbulb } from '@/components/animate-ui/icons/lightbulb';
 import { Bot } from '@/components/animate-ui/icons/bot';
 import { RotateCcw, Play } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useSession } from '@/lib/SessionContext';
 
 export default function NewSessionPage() {
   const router = useRouter();
+  const { mode } = useSession();
   const [showResumeDialog, setShowResumeDialog] = React.useState(false);
   const [hasExistingData, setHasExistingData] = React.useState(false);
+  const [isCheckingPreferences, setIsCheckingPreferences] =
+    React.useState(true);
 
   // Check for existing data on mount
   React.useEffect(() => {
@@ -50,9 +54,41 @@ export default function NewSessionPage() {
 
     if (exists) {
       setHasExistingData(true);
-      setShowResumeDialog(true);
+
+      // If we have a preference set (not ASK), we skip to start
+      // BUT if we have data, maybe we should still prompt to resume?
+      // User says: "if there's no active session detected, move to /session/start"
+      // This implies if there IS an active session, we might want to prompt or just resume.
+      // Let's stick to the prompt if data exists, but skip mode selection.
+      if (mode !== 'ASK') {
+        setShowResumeDialog(true);
+        setIsCheckingPreferences(false);
+      } else {
+        setShowResumeDialog(true);
+        setIsCheckingPreferences(false);
+      }
+    } else {
+      // No data exists. If we have a preference, skip selection entirely.
+      if (mode !== 'ASK') {
+        router.push(`/dashboard/session/start?mode=${mode}`);
+      } else {
+        setIsCheckingPreferences(false);
+      }
     }
-  }, []);
+  }, [mode, router]);
+
+  if (isCheckingPreferences) {
+    return (
+      <div className='flex items-center justify-center min-h-[50vh]'>
+        <div className='flex flex-col items-center gap-2'>
+          <div className='w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin' />
+          <p className='text-sm font-bold uppercase tracking-tighter animate-pulse'>
+            Checking Preferences...
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   const clearSessionData = () => {
     const keys = [
@@ -126,7 +162,7 @@ export default function NewSessionPage() {
           description='A comprehensive clinical guide that walks you through every stage with direct prompts and structured assistance.'
           icon={Bot}
           primary
-          onClick={() => handleSelectMode('FULLY_ASSISTED')}
+          onClick={() => handleSelectMode('ASSISTED')}
         />
       </div>
 

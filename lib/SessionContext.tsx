@@ -10,6 +10,12 @@ import React, {
 } from 'react';
 
 import { PatientBiodata, AssistanceMode, FiveCsData } from './types';
+import { getCurrentUser } from '@/app/actions/auth';
+import {
+  getUserPreferences,
+  updateUserPreferences,
+} from '@/app/actions/preferences';
+import { useTheme } from 'next-themes';
 
 interface Hint {
   id: string;
@@ -37,7 +43,9 @@ type SessionStage =
   | 'SUMMARY';
 
 interface SessionContextType {
+  user: { id: string; email: string; name?: string | null } | null;
   mode: AssistanceMode;
+  theme: string;
   currentStage: SessionStage;
   biodata: PatientBiodata | null;
   presentingComplaints: PresentingComplaint[];
@@ -60,10 +68,12 @@ interface SessionContextType {
   setRosData: (system: string, notes: string) => void;
   addHint: (message: string, stage?: string) => void;
   setMode: (mode: AssistanceMode) => void;
+  setTheme: (theme: string) => void;
   nextStage: () => void;
   prevStage: () => void;
   goToStage: (stage: SessionStage) => void;
   setIsAnalyzing: (isAnalyzing: boolean) => void;
+  refreshUser: () => Promise<void>;
 }
 
 const SessionContext = createContext<SessionContextType | undefined>(undefined);
@@ -90,6 +100,7 @@ const STORAGE_KEYS = {
   SH_DATA: 'hx-pal-sh',
   ROS_DATA: 'hx-pal-ros',
   STAGE: 'hx-pal-stage',
+  MODE: 'hx-pal-mode',
 };
 
 // Helper functions for localStorage
@@ -114,7 +125,17 @@ const saveToStorage = <T,>(key: string, value: T): void => {
 };
 
 export function SessionProvider({ children }: { children: React.ReactNode }) {
-  const [mode, setMode] = useState<AssistanceMode>('HINT');
+  const [user, setUser] = useState<{
+    id: string;
+    email: string;
+    name?: string | null;
+  } | null>(null);
+  const { theme: nextTheme, setTheme: setNextTheme } = useTheme();
+  const [mode, setModeState] = useState<AssistanceMode>(() =>
+    loadFromStorage<AssistanceMode>(STORAGE_KEYS.MODE, 'ASK'),
+  );
+  // Track theme locally as well to avoid hydration issues and provide to context
+  const [currentTheme, setCurrentTheme] = useState<string>('system');
   const [currentStage, setCurrentStage] = useState<SessionStage>(() => {
     const stage = loadFromStorage(STORAGE_KEYS.STAGE, 'BIODATA') as any;
     if (stage === 'EXAMINATION') return 'SUMMARY';
@@ -197,8 +218,48 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   }, [shData]);
 
   useEffect(() => {
-    saveToStorage(STORAGE_KEYS.STAGE, currentStage);
-  }, [currentStage]);
+    saveToStorage(STORAGE_KEYS.MODE, mode);
+  }, [mode]);
+
+  const refreshUser = useCallback(async () => {
+    const freshUser = await getCurrentUser();
+    setUser(freshUser);
+  }, []);
+
+  // Load user on mount
+  useEffect(() => {
+    refreshUser();
+  }, [refreshUser]);
+
+  // Sync local theme state with next-themes
+  useEffect(() => {
+    if (nextTheme) setCurrentTheme(nextTheme);
+  }, [nextTheme]);
+
+  // Load preferences from DB when user is available
+  useEffect(() => {
+    if (user) {
+      getUserPreferences().then((prefs) => {
+        if (prefs) {
+          setModeState(prefs.assistanceMode as AssistanceMode);
+          if (prefs.theme) setNextTheme(prefs.theme);
+        }
+      });
+    }
+  }, [user, setNextTheme]);
+
+  const setMode = useCallback(async (newMode: AssistanceMode) => {
+    setModeState(newMode);
+    await updateUserPreferences({ assistanceMode: newMode });
+  }, []);
+
+  const setTheme = useCallback(
+    async (newTheme: string) => {
+      setNextTheme(newTheme);
+      await updateUserPreferences({ theme: newTheme });
+    },
+    [setNextTheme],
+  );
 
   const addHint = useCallback((message: string, stage?: string) => {
     const newHint: Hint = {
@@ -332,6 +393,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
   const value = useMemo(
     () => ({
+      user,
       mode,
       currentStage,
       biodata,
@@ -354,14 +416,20 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       setRosData,
       addHint,
       setMode,
+      theme: currentTheme,
+      setTheme,
       nextStage,
       prevStage,
       goToStage,
       isAnalyzing,
       setIsAnalyzing,
+      refreshUser,
     }),
     [
+      user,
       mode,
+      currentTheme,
+      setTheme,
       currentStage,
       biodata,
       presentingComplaints,
@@ -387,6 +455,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       prevStage,
       goToStage,
       isAnalyzing,
+      refreshUser,
     ],
   );
 

@@ -8,8 +8,8 @@ import {
   SidebarFooter,
   SidebarHeader,
   SidebarMenu,
-  SidebarMenuButton,
   SidebarMenuItem,
+  useSidebar,
 } from '@/components/ui/sidebar';
 
 import { LayoutDashboard, ShieldEllipsis } from 'lucide-react';
@@ -48,7 +48,7 @@ const data = {
     },
     {
       title: 'Settings',
-      url: '#',
+      url: '/dashboard/settings',
       icon: Settings,
     },
   ],
@@ -62,6 +62,7 @@ const data = {
 };
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+  const { isMobile, setOpenMobile } = useSidebar();
   return (
     <Sidebar
       collapsible='offcanvas'
@@ -77,18 +78,19 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             >
               <Link
                 href='/dashboard'
-                className='data-[slot=sidebar-menu-button]:p-1.5! flex items-center gap-2'
+                onClick={() => isMobile && setOpenMobile(false)}
+                className='data-[slot=sidebar-menu-button]:p-1.5! flex items-center justify-center md:justify-start pt-6 md:pt-0 gap-2'
               >
-                <div className='relative size-8 overflow-hidden rounded-none'>
+                <div className='relative size-8 overflow-hidden flex items-center justify-center'>
                   <Image
                     src='/logo.png'
                     alt='Hx Pal Logo'
                     fill
-                    className='object-cover'
+                    className='object-contain'
                   />
                 </div>
 
-                <span className='text-lg font-bold tracking-tight'>Hx Pal</span>
+                <span className='text-xl font-bold tracking-tight'>Hx Pal</span>
               </Link>
             </AnimateIcon>
           </SidebarMenuItem>

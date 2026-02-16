@@ -82,7 +82,7 @@ export async function getRealTimeHint(session: HistorySession) {
     Mode: ${session.mode}
     
     Provide a concise, helpful clinical hint or the "next best question" for this stage.
-    If the mode is 'HINT', be subtle. If 'FULLY_ASSISTED', be direct.
+    If the mode is 'HINT', be subtle. If 'ASSISTED', be direct.
     
     Current Data:
     ${JSON.stringify(session.data, null, 2)}

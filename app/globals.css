@@ -4,6 +4,7 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
+  --font-sans: var(--font-ubuntu);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-sidebar-ring: var(--sidebar-ring);
@@ -188,4 +189,17 @@
       transform: translateX(100%);
     }
   }
+}
+
+/* Custom NProgress Styles */
+#nprogress .bar {
+  background: var(--primary) !important;
+  height: 2px !important;
+  z-index: 1031;
+}
+
+#nprogress .peg {
+  box-shadow:
+    0 0 10px var(--primary),
+    0 0 5px var(--primary) !important;
 }

@@ -1,6 +1,9 @@
 import type { Metadata } from 'next';
-import { Geist, Geist_Mono } from 'next/font/google';
+import { Geist, Geist_Mono, Ubuntu } from 'next/font/google';
 import { Toaster } from 'sonner';
+import { ProgressBar } from '@/components/progress-bar';
+import { Suspense } from 'react';
+import { ThemeProvider } from '@/components/theme-provider';
 import './globals.css';
 
 const geistSans = Geist({
@@ -11,6 +14,12 @@ const geistSans = Geist({
 const geistMono = Geist_Mono({
   variable: '--font-geist-mono',
   subsets: ['latin'],
+});
+
+const ubuntu = Ubuntu({
+  variable: '--font-ubuntu',
+  subsets: ['latin'],
+  weight: ['400', '700'],
 });
 
 export const metadata: Metadata = {
@@ -25,11 +34,19 @@ export default function RootLayout({
 }>) {
   return (
     <html lang='en'>
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
-        {children}
-        <Toaster richColors />
+      <body className={`${ubuntu.variable} font-sans antialiased`}>
+        <ThemeProvider
+          attribute='class'
+          defaultTheme='system'
+          enableSystem
+          disableTransitionOnChange
+        >
+          <Suspense fallback={null}>
+            <ProgressBar />
+          </Suspense>
+          {children}
+          <Toaster richColors />
+        </ThemeProvider>
       </body>
     </html>
   );

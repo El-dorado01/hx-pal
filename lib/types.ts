@@ -1,4 +1,4 @@
-export type AssistanceMode = 'HINT' | 'FULLY_ASSISTED';
+export type AssistanceMode = 'HINT' | 'ASSISTED' | 'ASK';
 
 export type HistoryStage =
   | 'BIODATA'

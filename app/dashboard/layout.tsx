@@ -5,6 +5,7 @@ import {
 } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/app-sidebar';
 import { SiteHeader } from '@/components/site-header';
+import { SessionProvider } from '@/lib/SessionContext';
 
 export default function DashboardLayout({
   children,
@@ -12,19 +13,21 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   return (
-    <SidebarProvider
-      style={
-        {
-          '--sidebar-width': 'calc(var(--spacing) * 62)',
-          '--header-height': 'calc(var(--spacing) * 12)',
-        } as React.CSSProperties
-      }
-    >
-      <AppSidebar variant='inset' />
-      <SidebarInset>
-        <SiteHeader />
-        <main>{children}</main>
-      </SidebarInset>
-    </SidebarProvider>
+    <SessionProvider>
+      <SidebarProvider
+        style={
+          {
+            '--sidebar-width': 'calc(var(--spacing) * 62)',
+            '--header-height': 'calc(var(--spacing) * 12)',
+          } as React.CSSProperties
+        }
+      >
+        <AppSidebar variant='inset' />
+        <SidebarInset>
+          <SiteHeader />
+          <main>{children}</main>
+        </SidebarInset>
+      </SidebarProvider>
+    </SessionProvider>
   );
 }
