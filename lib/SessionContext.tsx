@@ -15,7 +15,12 @@ import {
   getUserPreferences,
   updateUserPreferences,
 } from '@/app/actions/preferences';
+import {
+  getSessionByIdAction,
+  saveSessionAction,
+} from '@/app/actions/sessions';
 import { useTheme } from 'next-themes';
+import { useSearchParams } from 'next/navigation';
 
 interface Hint {
   id: string;
@@ -58,6 +63,10 @@ interface SessionContextType {
   currentHint: Hint | null;
   hintHistory: Hint[];
   isAnalyzing: boolean;
+  sessionId: string | null;
+  setSessionId: (id: string | null) => void;
+  loadSessionFromDb: (id: string) => Promise<void>;
+  saveCurrentSession: () => Promise<void>;
   setBiodata: (data: PatientBiodata) => void;
   setPresentingComplaints: (complaints: PresentingComplaint[]) => void;
   setHpcData: (complaintId: string, data: FiveCsData) => void;
@@ -130,6 +139,9 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     email: string;
     name?: string | null;
   } | null>(null);
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const searchParams = useSearchParams();
+  const urlSessionId = searchParams.get('id');
   const { theme: nextTheme, setTheme: setNextTheme } = useTheme();
   const [mode, setModeState] = useState<AssistanceMode>(() =>
     loadFromStorage<AssistanceMode>(STORAGE_KEYS.MODE, 'ASK'),
@@ -247,6 +259,81 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       });
     }
   }, [user, setNextTheme]);
+
+  // Load session if ID is in URL
+  useEffect(() => {
+    if (urlSessionId && urlSessionId !== sessionId) {
+      loadSessionFromDb(urlSessionId);
+    }
+  }, [urlSessionId]);
+
+  const loadSessionFromDb = useCallback(async (id: string) => {
+    const result = await getSessionByIdAction(id);
+    if (result.success && result.session) {
+      const { session } = result;
+      setSessionId(session.id);
+      setCurrentStage(session.currentStage as SessionStage);
+      setModeState(session.mode as AssistanceMode);
+
+      const data = session.data as any;
+      if (data) {
+        if (data.biodata) setBiodataState(data.biodata);
+        if (data.complaints) setPresentingComplaintsState(data.complaints);
+        if (data.hpc) setHpcDataState(data.hpc);
+        if (data.pmh) setPmhDataState(data.pmh);
+        if (data.dh) setDhDataState(data.dh);
+        if (data.fh) setFhDataState(data.fh);
+        if (data.sh) setShDataState(data.sh);
+        if (data.ros) setRosDataState(data.ros);
+      }
+    }
+  }, []);
+
+  const saveCurrentSession = useCallback(async () => {
+    if (!user) return;
+
+    const data = {
+      biodata,
+      complaints: presentingComplaints,
+      hpc: hpcData,
+      pmh: pmhData,
+      dh: dhData,
+      fh: fhData,
+      sh: shData,
+      ros: rosData,
+    };
+
+    const result = await saveSessionAction({
+      id: sessionId || undefined,
+      currentStage,
+      mode,
+      data,
+    });
+
+    if (result.success && result.session) {
+      setSessionId(result.session.id);
+    }
+  }, [
+    user,
+    sessionId,
+    currentStage,
+    mode,
+    biodata,
+    presentingComplaints,
+    hpcData,
+    pmhData,
+    dhData,
+    fhData,
+    shData,
+    rosData,
+  ]);
+
+  // Auto-save to DB on stage change if session exists
+  useEffect(() => {
+    if (sessionId) {
+      saveCurrentSession();
+    }
+  }, [currentStage]);
 
   const setMode = useCallback(async (newMode: AssistanceMode) => {
     setModeState(newMode);
@@ -424,6 +511,10 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       isAnalyzing,
       setIsAnalyzing,
       refreshUser,
+      sessionId,
+      setSessionId,
+      loadSessionFromDb,
+      saveCurrentSession,
     }),
     [
       user,
@@ -456,6 +547,9 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       goToStage,
       isAnalyzing,
       refreshUser,
+      sessionId,
+      loadSessionFromDb,
+      saveCurrentSession,
     ],
   );
 

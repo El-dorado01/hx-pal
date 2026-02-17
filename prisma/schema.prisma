@@ -19,6 +19,7 @@ model User {
 
   verificationTokens VerificationToken[]
   preference         UserPreference?
+  sessions           Session[]
 }
 
 model UserPreference {
@@ -28,6 +29,20 @@ model UserPreference {
   
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId String @unique
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status       String   @default("ACTIVE") // ACTIVE, COMPLETED, ARCHIVED
+  mode         String   @default("ASK")
+  currentStage String   @default("BIODATA")
+  data         Json?    // Storing the clerkship data
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([userId])
 }
 
 model VerificationToken {

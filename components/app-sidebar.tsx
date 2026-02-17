@@ -43,7 +43,7 @@ const data = {
     },
     {
       title: 'My Sessions',
-      url: '#',
+      url: '/dashboard/sessions',
       icon: ClipboardCheck,
     },
     {

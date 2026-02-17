@@ -14,7 +14,6 @@ import { Button } from '@/components/ui/button';
 import { AlertCircle } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 
-
 export function DashboardSearch() {
   return (
     <div className='flex flex-col items-center justify-center w-full max-w-4xl px-4 py-20 mx-auto space-y-12'>
@@ -65,12 +64,12 @@ export function DashboardSearch() {
           <input
             type='text'
             placeholder='How can I help you today?'
-            className='flex-1 bg-transparent border-none outline-none px-4 py-2 text-lg text-foreground placeholder:text-muted-foreground cursor-not-allowed'
+            className='flex-1 min-w-0 bg-transparent border-none outline-none px-2 sm:px-4 py-2 text-base sm:text-lg text-foreground placeholder:text-muted-foreground cursor-not-allowed'
             disabled
           />
 
           {/* Right Section: Insights, Expert, Audio */}
-          <div className='flex items-center gap-2 shrink-0'>
+          <div className='flex items-center gap-1 sm:gap-2 shrink-0'>
             <Button
               variant='ghost'
               size='icon'
@@ -89,9 +88,9 @@ export function DashboardSearch() {
 
             <Button
               size='icon'
-              className='bg-foreground text-background hover:bg-foreground/90 rounded-none size-10 shrink-0'
+              className='bg-foreground text-background hover:bg-foreground/90 rounded-none size-8 sm:size-10 shrink-0'
             >
-              <AudioLines className='size-5' />
+              <AudioLines className='size-4 sm:size-5' />
             </Button>
           </div>
         </div>
