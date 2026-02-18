@@ -14,6 +14,7 @@ import {
   Trash2,
   Users,
   Sparkles,
+  Loader2,
 } from 'lucide-react';
 import { analyzeFH } from '@/lib/ai-actions';
 import { toast } from 'sonner';
@@ -36,6 +37,7 @@ export function FamilyHistoryForm() {
     pmhData,
     addHint,
     setIsAnalyzing,
+    saveCurrentSession,
     isAnalyzing: isAnalyzingGlobal,
   } = useSession();
 
@@ -86,8 +88,11 @@ export function FamilyHistoryForm() {
   };
 
   const handleAIAnalysis = async () => {
+    toast.info(
+      'Analysis started. You can continue with history taking while Pal works.',
+    );
+    await saveCurrentSession();
     setIsAnalyzing(true);
-    toast.info('Analyzing genogram with Pal...');
 
     const context = {
       biodata,
@@ -249,8 +254,12 @@ export function FamilyHistoryForm() {
             disabled={isAnalyzingGlobal}
             className='gap-2 shadow-sm font-semibold justify-center'
           >
-            <Sparkles className='w-4 h-4 text-primary' />
-            {isAnalyzingGlobal ? 'Analyzing...' : 'Analyze Genogram'}
+            {isAnalyzingGlobal ? (
+              <Loader2 className='w-4 h-4 animate-spin text-primary' />
+            ) : (
+              <Sparkles className='w-4 h-4 text-primary' />
+            )}
+            {isAnalyzingGlobal ? 'Analyzing...' : 'Analyze FH'}
           </Button>
 
           <Button

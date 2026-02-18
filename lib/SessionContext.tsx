@@ -7,6 +7,7 @@ import React, {
   useCallback,
   useMemo,
   useEffect,
+  useRef,
 } from 'react';
 
 import { PatientBiodata, AssistanceMode, FiveCsData } from './types';
@@ -62,6 +63,7 @@ interface SessionContextType {
   rosData: Record<string, string>;
   currentHint: Hint | null;
   hintHistory: Hint[];
+  maxStageIndex: number;
   isAnalyzing: boolean;
   sessionId: string | null;
   setSessionId: (id: string | null) => void;
@@ -82,6 +84,7 @@ interface SessionContextType {
   prevStage: () => void;
   goToStage: (stage: SessionStage) => void;
   setIsAnalyzing: (isAnalyzing: boolean) => void;
+  isSaving: boolean;
   refreshUser: () => Promise<void>;
 }
 
@@ -110,6 +113,8 @@ const STORAGE_KEYS = {
   ROS_DATA: 'hx-pal-ros',
   STAGE: 'hx-pal-stage',
   MODE: 'hx-pal-mode',
+  HINTS: 'hx-pal-hints',
+  MAX_STAGE: 'hx-pal-max-stage',
 };
 
 // Helper functions for localStorage
@@ -127,6 +132,18 @@ const loadFromStorage = <T,>(key: string, defaultValue: T): T => {
 const saveToStorage = <T,>(key: string, value: T): void => {
   if (typeof window === 'undefined') return;
   try {
+    if (value === null || value === undefined) {
+      // Don't save null/undefined, effectively clearing it if it was there
+      // but only if we explicitly want to clear.
+      // For lazy persistence, we just skip writing the key if it's null.
+      return;
+    }
+
+    // Check for empty objects/arrays
+    if (Array.isArray(value) && value.length === 0) return;
+    if (typeof value === 'object' && Object.keys(value).length === 0) return;
+    if (typeof value === 'string' && value.trim() === '') return;
+
     window.localStorage.setItem(key, JSON.stringify(value));
   } catch (error) {
     console.error(`Error saving ${key} to localStorage:`, error);
@@ -178,22 +195,66 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     loadFromStorage(STORAGE_KEYS.DH_DATA, ''),
   );
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  // currentHint is derived from hintHistory, so no state needed
-  const [hintHistory, setHintHistory] = useState<Hint[]>([
-    {
-      id: '0',
-      message:
-        "Welcome to HX Pal! I'll guide you through this clinical clerkship session with helpful hints and suggestions.",
-      timestamp: new Date(Date.now() - 60000), // 1 minute ago
-      stage: 'Session Start',
-    },
-    {
-      id: '1',
-      message:
-        "Start by collecting the patient's full name, age, and sex. These are essential demographic details for any clinical assessment.",
-      timestamp: new Date(),
-      stage: 'Biodata Collection',
-    },
+  const [isSaving, setIsSaving] = useState(false);
+  const [maxStageIndex, setMaxStageIndex] = useState<number>(() =>
+    loadFromStorage<number>(STORAGE_KEYS.MAX_STAGE, 0),
+  );
+  const [hintHistory, setHintHistory] = useState<Hint[]>(() => {
+    const saved = loadFromStorage<Hint[] | null>(STORAGE_KEYS.HINTS, null);
+    if (saved && saved.length > 0) return saved;
+    return [
+      {
+        id: '0',
+        message:
+          "Welcome to HX Pal! I'll guide you through this clinical clerkship session with helpful hints and suggestions.",
+        timestamp: new Date(Date.now() - 60000), // 1 minute ago
+        stage: 'Session Start',
+      },
+      {
+        id: '1',
+        message:
+          "Start by collecting the patient's full name, age, and sex. These are essential demographic details for any clinical assessment.",
+        timestamp: new Date(),
+        stage: 'BIODATA_GUIDANCE',
+      },
+    ];
+  });
+
+  // Use refs to store the latest state for the save function to avoid frequent recreations
+  const biodataRef = useRef(biodata);
+  const presentingComplaintsRef = useRef(presentingComplaints);
+  const hpcDataRef = useRef(hpcData);
+  const pmhDataRef = useRef(pmhData);
+  const dhDataRef = useRef(dhData);
+  const fhDataRef = useRef(fhData);
+  const shDataRef = useRef(shData);
+  const rosDataRef = useRef(rosData);
+  const currentStageRef = useRef(currentStage);
+  const modeRef = useRef(mode);
+
+  // Keep refs in sync
+  useEffect(() => {
+    biodataRef.current = biodata;
+    presentingComplaintsRef.current = presentingComplaints;
+    hpcDataRef.current = hpcData;
+    pmhDataRef.current = pmhData;
+    dhDataRef.current = dhData;
+    fhDataRef.current = fhData;
+    shDataRef.current = shData;
+    rosDataRef.current = rosData;
+    currentStageRef.current = currentStage;
+    modeRef.current = mode;
+  }, [
+    biodata,
+    presentingComplaints,
+    hpcData,
+    pmhData,
+    dhData,
+    fhData,
+    shData,
+    rosData,
+    currentStage,
+    mode,
   ]);
 
   // Save to localStorage whenever data changes
@@ -208,6 +269,10 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     saveToStorage(STORAGE_KEYS.HPC_DATA, hpcData);
   }, [hpcData]);
+
+  useEffect(() => {
+    saveToStorage(STORAGE_KEYS.MAX_STAGE, maxStageIndex);
+  }, [maxStageIndex]);
 
   useEffect(() => {
     saveToStorage(STORAGE_KEYS.ROS_DATA, rosData);
@@ -233,6 +298,14 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     saveToStorage(STORAGE_KEYS.MODE, mode);
   }, [mode]);
 
+  useEffect(() => {
+    saveToStorage(STORAGE_KEYS.STAGE, currentStage);
+  }, [currentStage]);
+
+  useEffect(() => {
+    saveToStorage(STORAGE_KEYS.HINTS, hintHistory);
+  }, [hintHistory]);
+
   const refreshUser = useCallback(async () => {
     const freshUser = await getCurrentUser();
     setUser(freshUser);
@@ -252,20 +325,13 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (user) {
       getUserPreferences().then((prefs) => {
-        if (prefs) {
+        if (prefs && mode === 'ASK') {
           setModeState(prefs.assistanceMode as AssistanceMode);
           if (prefs.theme) setNextTheme(prefs.theme);
         }
       });
     }
-  }, [user, setNextTheme]);
-
-  // Load session if ID is in URL
-  useEffect(() => {
-    if (urlSessionId && urlSessionId !== sessionId) {
-      loadSessionFromDb(urlSessionId);
-    }
-  }, [urlSessionId]);
+  }, [user, setNextTheme, mode]);
 
   const loadSessionFromDb = useCallback(async (id: string) => {
     const result = await getSessionByIdAction(id);
@@ -290,50 +356,79 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const saveCurrentSession = useCallback(async () => {
-    if (!user) return;
+    const hasMeaningfulData = () => {
+      const bd = biodataRef.current;
+      const pc = presentingComplaintsRef.current;
+      const hpc = hpcDataRef.current;
+      const ros = rosDataRef.current;
 
-    const data = {
-      biodata,
-      complaints: presentingComplaints,
-      hpc: hpcData,
-      pmh: pmhData,
-      dh: dhData,
-      fh: fhData,
-      sh: shData,
-      ros: rosData,
+      if (bd && (bd.name || bd.age)) return true;
+      if (pc && pc.length > 0) return true;
+      if (hpc && Object.keys(hpc).length > 0) return true;
+      if (
+        pmhDataRef.current ||
+        dhDataRef.current ||
+        fhDataRef.current ||
+        shDataRef.current ||
+        (ros && Object.keys(ros).length > 0)
+      )
+        return true;
+      return false;
     };
 
-    const result = await saveSessionAction({
-      id: sessionId || undefined,
-      currentStage,
-      mode,
-      data,
-    });
+    if (!user || !hasMeaningfulData()) return;
 
-    if (result.success && result.session) {
-      setSessionId(result.session.id);
+    setIsSaving(true);
+    try {
+      const data = {
+        biodata: biodataRef.current,
+        complaints: presentingComplaintsRef.current,
+        hpc: hpcDataRef.current,
+        pmh: pmhDataRef.current,
+        dh: dhDataRef.current,
+        fh: fhDataRef.current,
+        sh: shDataRef.current,
+        ros: rosDataRef.current,
+      };
+
+      const result = await saveSessionAction({
+        id: sessionId || undefined,
+        currentStage: currentStageRef.current,
+        mode: modeRef.current,
+        data,
+      });
+
+      if (result.success && result.session) {
+        setSessionId(result.session.id);
+      }
+    } catch (error) {
+      console.error('Auto-save failed:', error);
+    } finally {
+      // Small delay to make the "Saved" state visible/smooth
+      setTimeout(() => setIsSaving(false), 1000);
     }
-  }, [
-    user,
-    sessionId,
-    currentStage,
-    mode,
-    biodata,
-    presentingComplaints,
-    hpcData,
-    pmhData,
-    dhData,
-    fhData,
-    shData,
-    rosData,
-  ]);
+  }, [user, sessionId]);
 
-  // Auto-save to DB on stage change if session exists
+  // Sync mode from URL if present
   useEffect(() => {
-    if (sessionId) {
-      saveCurrentSession();
+    if (typeof window === 'undefined') return;
+    const urlMode = searchParams.get('mode');
+    if (urlMode && urlMode !== mode) {
+      setModeState(urlMode as AssistanceMode);
     }
-  }, [currentStage]);
+  }, [searchParams, mode]);
+
+  // Load session if ID is in URL
+  useEffect(() => {
+    if (urlSessionId && urlSessionId !== sessionId) {
+      loadSessionFromDb(urlSessionId);
+    }
+  }, [urlSessionId, sessionId, loadSessionFromDb]);
+
+  // Auto-save to DB on stage change
+  useEffect(() => {
+    saveCurrentSession();
+  }, [currentStage, saveCurrentSession]);
 
   const setMode = useCallback(async (newMode: AssistanceMode) => {
     setModeState(newMode);
@@ -422,46 +517,68 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     setDhDataState(data);
   }, []);
 
+  // Automatically add stage-specific hints when currentStage changes
+  useEffect(() => {
+    // Check if we already have a guidance hint for this stage in the entire history
+    // We use a specific suffix '_GUIDANCE' to distinguish from AI hints or previous attempts
+    const guidanceTag = `${currentStage}_GUIDANCE`;
+    const alreadyHasGuidance = hintHistory.some((h) => h.stage === guidanceTag);
+
+    if (alreadyHasGuidance) return;
+
+    if (currentStage === 'PRESENTING_COMPLAINT') {
+      addHint(
+        'Now, ask the patient about their main complaint. What brought them to seek medical attention? How long have they been experiencing this?',
+        'PRESENTING_COMPLAINT_GUIDANCE',
+      );
+    } else if (currentStage === 'HISTORY') {
+      addHint(
+        'Time to explore the history of the presenting complaint. Use the 5 Cs framework: Character, Course, Cause, Complications, and Care. If the patient has pain, strictly use SOCRATES to elaborate on the Character.',
+        'HISTORY_GUIDANCE',
+      );
+    } else if (currentStage === 'ROS') {
+      addHint(
+        'Now, perform a systemic review (ROS) to catch any other symptoms. Focus on systems related to the chief complaint, but briefly screen major systems (CVS, RS, GI, GU, CNS) for any missed red flags.',
+        'ROS_GUIDANCE',
+      );
+    } else if (currentStage === 'PMH') {
+      addHint(
+        'Collect the Past Medical History. Ask about Chronic Conditions (HTN, Diabetes, Asthama, Epilepsy), previous Hospitalizations, and Surgeries. Use the "MJ THREADS" mnemonic if you need a comprehensive screen.',
+        'PMH_GUIDANCE',
+      );
+    } else if (currentStage === 'DRUG_HISTORY') {
+      addHint(
+        'Review all current medications: Prescribed, Over-the-counter (OTC), and Herbal supplements. Crucially, ask about Drug Allergies and the nature of the reaction.',
+        'DRUG_HISTORY_GUIDANCE',
+      );
+    } else if (currentStage === 'FAMILY_HISTORY') {
+      addHint(
+        'Ask about hereditary conditions in first-degree relatives (Parents, Siblings). Focus on conditions relevant to the presenting complaint (e.g. IHD, Diabetes, Cancer).',
+        'FAMILY_HISTORY_GUIDANCE',
+      );
+    } else if (currentStage === 'SOCIAL_HISTORY') {
+      addHint(
+        'Query lifestyle factors: Smoking (pack-years), Alcohol (units/week), Recreational Drugs. Also ask about Occupation and Living Situation (Social Support).',
+        'SOCIAL_HISTORY_GUIDANCE',
+      );
+    } else if (currentStage === 'SUMMARY') {
+      addHint(
+        'You have completed the session. Review the summary of your findings below.',
+        'SUMMARY_GUIDANCE',
+      );
+    }
+  }, [currentStage, addHint, hintHistory]);
+
   const nextStage = useCallback(() => {
     const currentIndex = STAGE_ORDER.indexOf(currentStage);
     if (currentIndex < STAGE_ORDER.length - 1) {
       const newStage = STAGE_ORDER[currentIndex + 1];
       setCurrentStage(newStage);
-
-      // Add stage-specific hints
-      if (newStage === 'PRESENTING_COMPLAINT') {
-        addHint(
-          'Now, ask the patient about their main complaint. What brought them to seek medical attention? How long have they been experiencing this?',
-          'Presenting Complaint',
-        );
-      } else if (newStage === 'HISTORY') {
-        addHint(
-          'Time to explore the history of the presenting complaint. Use the 5 Cs framework: Character, Course, Cause, Complications, and Care. If the patient has pain, strictly use SOCRATES to elaborate on the Character.',
-          'History Taking',
-        );
-      } else if (newStage === 'ROS') {
-        addHint(
-          'Now, perform a systemic review (ROS) to catch any other symptoms. Focus on systems related to the chief complaint, but briefly screen major systems (CVS, RS, GI, GU, CNS) for any missed red flags.',
-          'Review of Systems',
-        );
-      } else if (newStage === 'FAMILY_HISTORY') {
-        addHint(
-          'Ask about hereditary conditions in first-degree relatives (Parents, Siblings). Focus on conditions relevant to the presenting complaint (e.g. IHD, Diabetes, Cancer).',
-          'Family History',
-        );
-      } else if (newStage === 'SOCIAL_HISTORY') {
-        addHint(
-          'Query lifestyle factors: Smoking (pack-years), Alcohol (units/week), Recreational Drugs. Also ask about Occupation and Living Situation (Social Support).',
-          'Social History',
-        );
-      } else if (newStage === 'SUMMARY') {
-        addHint(
-          'You have completed the session. Review the summary of your findings below.',
-          'Session Complete',
-        );
+      if (currentIndex + 1 > maxStageIndex) {
+        setMaxStageIndex(currentIndex + 1);
       }
     }
-  }, [currentStage, addHint]);
+  }, [currentStage, maxStageIndex]);
 
   const prevStage = useCallback(() => {
     const currentIndex = STAGE_ORDER.indexOf(currentStage);
@@ -470,9 +587,19 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     }
   }, [currentStage]);
 
-  const goToStage = useCallback((stage: SessionStage) => {
-    setCurrentStage(stage);
-  }, []);
+  const goToStage = useCallback(
+    (stage: SessionStage) => {
+      const targetIndex = STAGE_ORDER.indexOf(stage);
+      // Allow navigation if stage is already reached or is the immediate next one
+      if (targetIndex <= maxStageIndex + 1) {
+        setCurrentStage(stage);
+        if (targetIndex > maxStageIndex) {
+          setMaxStageIndex(targetIndex);
+        }
+      }
+    },
+    [maxStageIndex],
+  );
 
   const currentHint = useMemo(() => {
     return hintHistory.length > 0 ? hintHistory[hintHistory.length - 1] : null;
@@ -503,6 +630,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       setRosData,
       addHint,
       setMode,
+      maxStageIndex,
       theme: currentTheme,
       setTheme,
       nextStage,
@@ -510,6 +638,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       goToStage,
       isAnalyzing,
       setIsAnalyzing,
+      isSaving,
       refreshUser,
       sessionId,
       setSessionId,
@@ -532,6 +661,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       rosData,
       currentHint,
       hintHistory,
+      maxStageIndex,
       setBiodata,
       setPresentingComplaints,
       setHpcData,
@@ -546,6 +676,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       prevStage,
       goToStage,
       isAnalyzing,
+      isSaving,
       refreshUser,
       sessionId,
       loadSessionFromDb,

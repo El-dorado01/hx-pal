@@ -26,6 +26,7 @@ import {
   ChevronLeft,
   Sparkles,
   History as HistoryIcon,
+  Loader2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -104,7 +105,9 @@ export function HistoryForm() {
     nextStage,
     prevStage,
     addHint,
+    saveCurrentSession,
     setIsAnalyzing,
+    isAnalyzing: isAnalyzingGlobal,
   } = useSession();
 
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -217,10 +220,12 @@ export function HistoryForm() {
     if (!currentComplaint) return;
 
     try {
+      toast.info(
+        'Analysis started. You can continue with history taking while Pal works.',
+      );
       // Save current data first
       setHpcData(currentComplaint.id, formData);
-
-      toast.info('Analyzing HPC with Pal...');
+      await saveCurrentSession();
       setIsAnalyzing(true);
 
       const context = {
@@ -391,10 +396,15 @@ export function HistoryForm() {
           type='button'
           variant='secondary'
           onClick={handleAnalyzeWithPal}
+          disabled={isAnalyzingGlobal}
           className='flex items-center justify-center gap-2 bg-purple-100 text-purple-700 hover:bg-purple-200 border-purple-200'
         >
-          <BrainCircuit size={16} />
-          Analyze with Pal
+          {isAnalyzingGlobal ? (
+            <Loader2 className='w-4 h-4 animate-spin' />
+          ) : (
+            <BrainCircuit size={16} />
+          )}
+          {isAnalyzingGlobal ? 'Analyzing...' : 'Analyze with Pal'}
         </Button>
 
         <Button

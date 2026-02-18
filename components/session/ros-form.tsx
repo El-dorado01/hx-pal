@@ -17,6 +17,7 @@ import {
   Sparkles,
   ChevronRight,
   ChevronLeft,
+  Loader2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { analyzeROS } from '@/lib/ai-actions';
@@ -75,6 +76,7 @@ export function RosForm() {
     hpcData,
     addHint,
     setIsAnalyzing,
+    saveCurrentSession,
     isAnalyzing: isAnalyzingGlobal,
   } = useSession();
 
@@ -94,7 +96,10 @@ export function RosForm() {
 
   const handleAnalyzeStreamlined = async () => {
     try {
-      toast.info('Analyzing Review of Systems...');
+      toast.info(
+        'Analysis started. You can continue with history taking while Pal works.',
+      );
+      await saveCurrentSession();
       setIsAnalyzing(true);
 
       const context = {
@@ -242,11 +247,12 @@ export function RosForm() {
             disabled={isAnalyzingGlobal}
             className='gap-2 shadow-sm font-semibold justify-center'
           >
-            <Sparkles
-              size={16}
-              className='text-primary'
-            />
-            {isAnalyzingGlobal ? 'Analyzing...' : 'Analyze ROS'}
+            {isAnalyzingGlobal ? (
+              <Loader2 className='w-4 h-4 animate-spin text-primary' />
+            ) : (
+              <Sparkles className='w-4 h-4 text-primary' />
+            )}
+            {isAnalyzingGlobal ? 'Analyzing...' : 'Analyze Systems'}
           </Button>
           <Button
             onClick={nextStage}

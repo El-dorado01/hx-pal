@@ -17,6 +17,7 @@ import {
   ChevronRight,
   ChevronLeft,
   CheckCircle2,
+  Loader2,
 } from 'lucide-react';
 import { analyzeSH } from '@/lib/ai-actions';
 import { toast } from 'sonner';
@@ -31,6 +32,7 @@ export function SocialHistoryForm() {
     biodata,
     presentingComplaints,
     setIsAnalyzing,
+    saveCurrentSession,
     isAnalyzing: isAnalyzingGlobal,
   } = useSession();
 
@@ -127,8 +129,11 @@ export function SocialHistoryForm() {
   ]);
 
   const handleAIAnalysis = async () => {
+    toast.info(
+      'Analysis started. You can continue with history taking while Pal works.',
+    );
+    await saveCurrentSession();
     setIsAnalyzing(true);
-    toast.info('Analyzing social history with Pal...');
     try {
       const summary = `
         Tobacco: ${tobaccoStatus} (${packYears} pack-years)
@@ -370,7 +375,11 @@ export function SocialHistoryForm() {
             disabled={isAnalyzingGlobal}
             className='gap-2 shadow-sm font-semibold justify-center'
           >
-            <Sparkles className='w-4 h-4 text-primary' />
+            {isAnalyzingGlobal ? (
+              <Loader2 className='w-4 h-4 animate-spin text-primary' />
+            ) : (
+              <Sparkles className='w-4 h-4 text-primary' />
+            )}
             {isAnalyzingGlobal ? 'Analyzing...' : 'Analyze History'}
           </Button>
 

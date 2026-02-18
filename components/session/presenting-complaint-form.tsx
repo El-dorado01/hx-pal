@@ -275,7 +275,7 @@ export function PresentingComplaintForm() {
   return (
     <form
       onSubmit={handleSubmit}
-      className='space-y-6 max-w-2xl mx-auto'
+      className='space-y-6 py-6 max-w-2xl mx-auto'
     >
       <DndContext
         sensors={sensors}

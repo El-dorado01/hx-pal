@@ -40,15 +40,15 @@ export default function NewSessionPage() {
 
     const exists = keys.some((key) => {
       const val = window.localStorage.getItem(key);
-      if (!val) return false;
+      if (!val || val === 'null' || val === 'undefined') return false;
       try {
         const parsed = JSON.parse(val);
-        // Check if it's not just an empty object or empty array
+        if (!parsed) return false;
         if (Array.isArray(parsed)) return parsed.length > 0;
         if (typeof parsed === 'object') return Object.keys(parsed).length > 0;
         return !!parsed;
       } catch {
-        return !!val;
+        return !!val && val !== 'null' && val !== 'undefined';
       }
     });
 
@@ -120,13 +120,16 @@ export default function NewSessionPage() {
   };
 
   const handleResume = () => {
-    // Determine last stage or default to start
+    // Determine last stage
     const lastStage = window.localStorage.getItem('hx-pal-stage');
-    if (lastStage && lastStage !== 'SUMMARY') {
-      router.push('/dashboard/session/start');
-    } else {
-      // If they were at summary or finished, just let them pick a mode normally
+
+    // If they were at summary or finished, we treat it as starting fresh (letting them pick a mode)
+    // but the dialog wouldn't usually show for finished sessions unless they didn't clear storage.
+    // If they click resume, they WANT to see their data.
+    if (lastStage === 'SUMMARY') {
       setShowResumeDialog(false);
+    } else {
+      router.push('/dashboard/session/start');
     }
   };
 

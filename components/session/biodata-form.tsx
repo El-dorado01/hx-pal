@@ -34,6 +34,7 @@ export function BiodataForm() {
     nextStage,
     biodata: savedBiodata,
     setIsAnalyzing,
+    saveCurrentSession,
   } = useSession();
   const [selectedGender, setSelectedGender] = React.useState<string>('');
   const [selectedMaritalStatus, setSelectedMaritalStatus] =
@@ -94,6 +95,7 @@ export function BiodataForm() {
 
     console.log('Biodata submitted:', completeData);
     // Save biodata to context (this will also add a custom hint)
+    saveCurrentSession();
     setIsAnalyzing(true);
     setBiodata(completeData);
     setIsAnalyzing(false);

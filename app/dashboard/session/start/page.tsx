@@ -80,8 +80,14 @@ const STAGE_CONFIG = {
 };
 
 function SessionStartContent() {
-  const { currentHint, hintHistory, currentStage, goToStage, isAnalyzing } =
-    useSession();
+  const {
+    currentHint,
+    hintHistory,
+    currentStage,
+    goToStage,
+    isAnalyzing,
+    isSaving,
+  } = useSession();
   const stageConfig = STAGE_CONFIG[currentStage as keyof typeof STAGE_CONFIG];
 
   const orderedStages = Object.keys(STAGE_CONFIG).sort(
@@ -108,8 +114,25 @@ function SessionStartContent() {
       <div className='max-w-4xl mx-auto w-full space-y-6'>
         {/* Header */}
         <div className='space-y-3 text-center'>
-          <div className='inline-block px-3 py-1 bg-primary/10 border border-primary/20 text-primary text-[10px] font-bold uppercase tracking-[0.2em]'>
-            Stage {stageConfig.number}: {stageConfig.label}
+          <div className='flex items-center justify-center gap-4'>
+            <div className='inline-block px-3 py-1 bg-primary/10 border border-primary/20 text-primary text-[10px] font-bold uppercase tracking-[0.2em]'>
+              Stage {stageConfig.number}: {stageConfig.label}
+            </div>
+            {/* Auto-save indicator */}
+            <div
+              className={`flex items-center gap-1.5 transition-all duration-500 ${
+                isSaving ? 'opacity-100' : 'opacity-40'
+              }`}
+            >
+              <div
+                className={`w-1.5 h-1.5 rounded-full ${
+                  isSaving ? 'bg-amber-500 animate-pulse' : 'bg-emerald-500'
+                }`}
+              />
+              <span className='text-[9px] font-bold uppercase tracking-widest text-muted-foreground'>
+                {isSaving ? 'Saving...' : 'Saved'}
+              </span>
+            </div>
           </div>
           <h1 className='text-3xl md:text-4xl font-black tracking-tighter uppercase leading-tight'>
             {stageConfig.title.split(' ')[0]}{' '}
@@ -126,24 +149,30 @@ function SessionStartContent() {
         {/* Progress Indicator */}
         <TooltipProvider>
           <div className='flex items-center gap-2 justify-center'>
-            {orderedStages.map((stageKey) => {
+            {orderedStages.map((stageKey, index) => {
               const config =
                 STAGE_CONFIG[stageKey as keyof typeof STAGE_CONFIG];
+              const isPast = config.number <= stageConfig.number;
+              const isLocked = index > (useSession().maxStageIndex ?? 0) + 1;
+
               return (
                 <Tooltip key={stageKey}>
                   <TooltipTrigger asChild>
                     <button
-                      onClick={() => goToStage(stageKey as any)}
-                      className={`h-1.5 w-12 rounded-none transition-all duration-300 cursor-pointer outline-none hover:opacity-80 ${
-                        config.number <= stageConfig.number
-                          ? 'bg-primary'
-                          : 'bg-muted'
+                      onClick={() => !isLocked && goToStage(stageKey as any)}
+                      disabled={isLocked}
+                      className={`h-1.5 w-12 rounded-none transition-all duration-300 outline-none ${
+                        isPast
+                          ? 'bg-primary cursor-pointer hover:opacity-80'
+                          : isLocked
+                            ? 'bg-muted cursor-not-allowed opacity-30'
+                            : 'bg-muted cursor-pointer hover:opacity-80'
                       }`}
                     />
                   </TooltipTrigger>
                   <TooltipContent>
                     <p className='font-bold uppercase tracking-widest text-[10px]'>
-                      {config.label}
+                      {isLocked ? 'Locked' : config.label}
                     </p>
                   </TooltipContent>
                 </Tooltip>

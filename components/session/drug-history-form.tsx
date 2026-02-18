@@ -10,12 +10,15 @@ import { Switch } from '@/components/ui/switch';
 import {
   ChevronRight,
   ChevronLeft,
+  Search,
   Plus,
   Trash2,
   Pill,
-  AlertTriangle,
+  ShieldAlert,
+  Loader2,
   Sparkles,
   Check,
+  AlertTriangle,
 } from 'lucide-react';
 import { analyzeDH } from '@/lib/ai-actions';
 import { toast } from 'sonner';
@@ -42,6 +45,7 @@ export function DrugHistoryForm() {
     presentingComplaints,
     addHint,
     setIsAnalyzing,
+    saveCurrentSession,
     isAnalyzing: isAnalyzingGlobal,
   } = useSession();
 
@@ -120,8 +124,10 @@ export function DrugHistoryForm() {
   };
 
   const handleAIAnalysis = async () => {
-    setIsAnalyzing(true);
-    toast.info('Checking drug interactions...');
+    toast.info(
+      'Analysis started. You can continue with history taking while Pal works.',
+    );
+    await saveCurrentSession();
 
     // Construct context object
     const context = {
@@ -137,6 +143,7 @@ export function DrugHistoryForm() {
       notes,
     };
 
+    setIsAnalyzing(true);
     try {
       const result = await analyzeDH(JSON.stringify(dhDataForAI), context);
       addHint(result, 'Interaction Check');
@@ -328,7 +335,11 @@ export function DrugHistoryForm() {
             disabled={isAnalyzingGlobal}
             className='gap-2 shadow-sm font-semibold justify-center'
           >
-            <Sparkles className='w-4 h-4 text-primary' />
+            {isAnalyzingGlobal ? (
+              <Loader2 className='w-4 h-4 animate-spin text-primary' />
+            ) : (
+              <Sparkles className='w-4 h-4 text-primary' />
+            )}
             {isAnalyzingGlobal ? 'Checking...' : 'Check Interactions'}
           </Button>
 

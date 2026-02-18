@@ -15,6 +15,7 @@ import {
   Stethoscope,
   FileText,
   Sparkles,
+  Loader2,
 } from 'lucide-react';
 import { analyzePMH } from '@/lib/ai-actions';
 import { toast } from 'sonner';
@@ -35,6 +36,7 @@ export function PmhForm() {
     presentingComplaints,
     addHint,
     setIsAnalyzing,
+    saveCurrentSession,
     isAnalyzing: isAnalyzingGlobal,
   } = useSession();
   // Wait, useSession doesn't have updateAIContext. I should check how AI is triggered.
@@ -94,8 +96,11 @@ export function PmhForm() {
       return;
     }
 
+    toast.info(
+      'Analysis started. You can continue with history taking while Pal works.',
+    );
+    await saveCurrentSession();
     setIsAnalyzing(true);
-    toast.info('Analyzing PMH with Pal...');
 
     const dataSummary = `
       Patient Age: ${biodata?.age}, Gender: ${biodata?.gender}
@@ -260,7 +265,11 @@ export function PmhForm() {
             disabled={isAnalyzingGlobal}
             className='gap-2 shadow-sm font-semibold justify-center'
           >
-            <Sparkles className='w-4 h-4 text-primary' />
+            {isAnalyzingGlobal ? (
+              <Loader2 className='w-4 h-4 animate-spin text-primary' />
+            ) : (
+              <Sparkles className='w-4 h-4 text-primary' />
+            )}
             {isAnalyzingGlobal ? 'Analyzing...' : 'Analyze PMH'}
           </Button>
 

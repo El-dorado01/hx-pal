@@ -15,8 +15,27 @@ export async function saveSessionAction(data: {
   if (!session?.user?.id) return { error: 'Unauthorized' };
 
   try {
+    let targetId = data.id;
+
+    // If no ID is provided, check if the user has an existing ACTIVE session
+    if (!targetId) {
+      const existingActiveSession = await prisma.session.findFirst({
+        where: {
+          userId: session.user.id,
+          status: 'ACTIVE',
+        },
+        orderBy: {
+          updatedAt: 'desc',
+        },
+      });
+
+      if (existingActiveSession) {
+        targetId = existingActiveSession.id;
+      }
+    }
+
     const dbSession = await prisma.session.upsert({
-      where: { id: data.id || 'new' }, // 'new' is just a placeholder to trigger creation if no ID is provided
+      where: { id: targetId || 'new' },
       update: {
         status: data.status,
         mode: data.mode,
