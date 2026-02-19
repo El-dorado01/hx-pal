@@ -87,7 +87,17 @@ function SessionStartContent() {
     goToStage,
     isAnalyzing,
     isSaving,
+    status,
+    sessionId,
   } = useSession();
+
+  // Redirect to review page if session is already completed
+  React.useEffect(() => {
+    if (status === 'COMPLETED' && sessionId) {
+      window.location.href = `/dashboard/sessions/${sessionId}`;
+    }
+  }, [status, sessionId]);
+
   const stageConfig = STAGE_CONFIG[currentStage as keyof typeof STAGE_CONFIG];
 
   const orderedStages = Object.keys(STAGE_CONFIG).sort(

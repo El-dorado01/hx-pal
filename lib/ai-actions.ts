@@ -39,14 +39,24 @@ export async function generateClinicalSummary(session: HistorySession) {
   }
 }
 
-export async function generateDifferentials(session: HistorySession) {
-  if (!process.env.GEMINI_API_KEY && !process.env.GOOGLE_GENERATIVE_AI_API_KEY)
-    return [];
+export async function generatePresentationReport(session: HistorySession) {
+  if (
+    !process.env.GEMINI_API_KEY &&
+    !process.env.GOOGLE_GENERATIVE_AI_API_KEY
+  ) {
+    return 'AI Setup Required.';
+  }
 
   const prompt = `
-    Based on the following medical history, provide 3 to 5 differential diagnoses.
-    Format your response as a JSON array of objects: [{ "diagnosis": string, "confidence": number (0-1), "reasoning": string }].
-    Return ONLY the JSON array.
+    You are an expert clinical instructor. 
+    Synthesize the following medical history into a **Narrative Case Presentation** format.
+    
+    Requirements:
+    - Focus on a cohesive story (prose) rather than bulleted lists.
+    - Include meaningful transitions between biodata, history of presenting complaint, and other histories.
+    - Use professional clinical language suitable for an oral case presentation.
+    - Emphasize pertinent positives and negatives.
+    - Keep it well-detailed but highly readable.
     
     Data:
     ${JSON.stringify(session.data, null, 2)}
@@ -57,11 +67,59 @@ export async function generateDifferentials(session: HistorySession) {
       model: 'gemini-3-flash-preview',
       contents: prompt,
     });
+    return response.text || 'No presentation generated.';
+  } catch (error: any) {
+    console.error('Gemini Presentation Error:', error);
+    return 'Error generating presentation format. Please check your AI configuration.';
+  }
+}
+
+export async function generateDifferentials(session: HistorySession) {
+  if (!process.env.GEMINI_API_KEY && !process.env.GOOGLE_GENERATIVE_AI_API_KEY)
+    return [];
+
+  const prompt = `
+    You are an expert clinical diagnostician.
+    Based on the following medical history data, provide 3 to 5 differential diagnoses.
+    
+    For each diagnosis, include:
+    1. The name of the diagnosis.
+    2. A confidence score (0-1) representing how well the clinical data matches this diagnosis.
+    3. Clinical reasoning (1-2 sentences) explaining WHY this is a differential, citing specific findings from the history that support it.
+    
+    Format your response as a strict JSON array of objects: 
+    [{"diagnosis": "...", "confidence": 0.85, "reasoning": "..."}]
+    
+    Data:
+    ${JSON.stringify(session.data, null, 2)}
+    
+    Return ONLY the JSON array. Do not include markdown formatting or explanations.
+  `;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: prompt,
+    });
 
     const text = response.text || '[]';
-    // Clean potential markdown formatting from AI response
-    const jsonStr = text.replace(/```json|```/g, '').trim();
-    return JSON.parse(jsonStr);
+    // More robust cleaning for AI-generated JSON
+    const jsonStr = text
+      .replace(/```json/gi, '')
+      .replace(/```/g, '')
+      .trim();
+
+    try {
+      return JSON.parse(jsonStr);
+    } catch (parseError) {
+      console.error('JSON Parse Error in Differentials:', parseError, jsonStr);
+      // Fallback: try to find the array start and end
+      const match = jsonStr.match(/\[[\s\S]*\]/);
+      if (match) {
+        return JSON.parse(match[0]);
+      }
+      throw parseError;
+    }
   } catch (error) {
     console.error('Gemini Differentials Error:', error);
     return [];

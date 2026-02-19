@@ -39,6 +39,12 @@ export interface FiveCsData {
   extraNotes?: string; // Optional additional info
 }
 
+export interface Differential {
+  diagnosis: string;
+  confidence: number;
+  reasoning: string;
+}
+
 export interface ChiefComplaint {
   text: string;
   system?: MedicalSystem;

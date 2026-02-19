@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/sidebar';
 import Link from 'next/link';
 import { AnimateIcon } from './animate-ui/icons/icon';
+import { usePathname } from 'next/navigation';
 
 export function NavMain({
   items,
@@ -21,6 +22,7 @@ export function NavMain({
   }[];
 }) {
   const { isMobile, setOpenMobile } = useSidebar();
+  const pathname = usePathname();
 
   const handleLinkClick = () => {
     if (isMobile) {
@@ -32,30 +34,40 @@ export function NavMain({
     <SidebarGroup>
       <SidebarGroupContent className='flex flex-col gap-2'>
         <SidebarMenu className='mt-5'>
-          {items.map((item) => (
-            <SidebarMenuItem key={item.title}>
-              <AnimateIcon
-                animateOnHover
-                loop={true}
-                loopDelay={3000}
-              >
-                <SidebarMenuButton
-                  tooltip={item.title}
-                  size={'lg'}
-                  variant={'default'}
-                  asChild
+          {items.map((item) => {
+            // Determine active state
+            // Exact match for root dashboard or strict sub-path match
+            const isActive =
+              item.url === '/dashboard'
+                ? pathname === '/dashboard'
+                : pathname.startsWith(item.url);
+
+            return (
+              <SidebarMenuItem key={item.title}>
+                <AnimateIcon
+                  animateOnHover
+                  loop={true}
+                  loopDelay={3000}
                 >
-                  <Link
-                    href={item.url}
-                    onClick={handleLinkClick}
+                  <SidebarMenuButton
+                    tooltip={item.title}
+                    size={'lg'}
+                    variant={'default'}
+                    isActive={isActive}
+                    asChild
                   >
-                    {item.icon && <item.icon className='size-5' />}
-                    <span className='text-base'>{item.title}</span>
-                  </Link>
-                </SidebarMenuButton>
-              </AnimateIcon>
-            </SidebarMenuItem>
-          ))}
+                    <Link
+                      href={item.url}
+                      onClick={handleLinkClick}
+                    >
+                      {item.icon && <item.icon className='size-5' />}
+                      <span className='text-base'>{item.title}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </AnimateIcon>
+              </SidebarMenuItem>
+            );
+          })}
         </SidebarMenu>
       </SidebarGroupContent>
     </SidebarGroup>

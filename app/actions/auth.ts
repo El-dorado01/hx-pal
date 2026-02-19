@@ -206,7 +206,7 @@ export async function forgotPasswordAction(data: { email: string }) {
       },
     });
 
-    await sendVerificationCode({ email, code: otp });
+    await sendVerificationCode({ email, code: otp, type: 'reset' });
 
     return { success: true };
   } catch (error: any) {

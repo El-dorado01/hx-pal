@@ -10,7 +10,12 @@ import React, {
   useRef,
 } from 'react';
 
-import { PatientBiodata, AssistanceMode, FiveCsData } from './types';
+import {
+  PatientBiodata,
+  AssistanceMode,
+  FiveCsData,
+  Differential,
+} from './types';
 import { getCurrentUser } from '@/app/actions/auth';
 import {
   getUserPreferences,
@@ -52,6 +57,7 @@ interface SessionContextType {
   user: { id: string; email: string; name?: string | null } | null;
   mode: AssistanceMode;
   theme: string;
+  status: 'ACTIVE' | 'COMPLETED';
   currentStage: SessionStage;
   biodata: PatientBiodata | null;
   presentingComplaints: PresentingComplaint[];
@@ -61,6 +67,7 @@ interface SessionContextType {
   fhData: string; // Family History data
   shData: string; // Social History data
   rosData: Record<string, string>;
+  differentials: Differential[];
   currentHint: Hint | null;
   hintHistory: Hint[];
   maxStageIndex: number;
@@ -68,7 +75,7 @@ interface SessionContextType {
   sessionId: string | null;
   setSessionId: (id: string | null) => void;
   loadSessionFromDb: (id: string) => Promise<void>;
-  saveCurrentSession: () => Promise<void>;
+  saveCurrentSession: () => Promise<string | null>;
   setBiodata: (data: PatientBiodata) => void;
   setPresentingComplaints: (complaints: PresentingComplaint[]) => void;
   setHpcData: (complaintId: string, data: FiveCsData) => void;
@@ -77,6 +84,8 @@ interface SessionContextType {
   setFhData: (data: string) => void;
   setShData: (data: string) => void;
   setRosData: (system: string, notes: string) => void;
+  setDifferentials: (data: Differential[]) => void;
+  setStatus: (status: 'ACTIVE' | 'COMPLETED') => void;
   addHint: (message: string, stage?: string) => void;
   setMode: (mode: AssistanceMode) => void;
   setTheme: (theme: string) => void;
@@ -115,6 +124,9 @@ const STORAGE_KEYS = {
   MODE: 'hx-pal-mode',
   HINTS: 'hx-pal-hints',
   MAX_STAGE: 'hx-pal-max-stage',
+  DIFFERENTIALS: 'hx-pal-differentials',
+  STATUS: 'hx-pal-status',
+  SESSION_ID: 'hx-pal-session-id',
 };
 
 // Helper functions for localStorage
@@ -156,7 +168,9 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     email: string;
     name?: string | null;
   } | null>(null);
-  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [sessionId, setSessionId] = useState<string | null>(() =>
+    loadFromStorage<string | null>(STORAGE_KEYS.SESSION_ID, null),
+  );
   const searchParams = useSearchParams();
   const urlSessionId = searchParams.get('id');
   const { theme: nextTheme, setTheme: setNextTheme } = useTheme();
@@ -191,8 +205,14 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const [shData, setShDataState] = useState<string>(() =>
     loadFromStorage(STORAGE_KEYS.SH_DATA, ''),
   );
+  const [status, setStatusState] = useState<'ACTIVE' | 'COMPLETED'>(() =>
+    loadFromStorage<'ACTIVE' | 'COMPLETED'>(STORAGE_KEYS.STATUS, 'ACTIVE'),
+  );
   const [dhData, setDhDataState] = useState<string>(() =>
     loadFromStorage(STORAGE_KEYS.DH_DATA, ''),
+  );
+  const [differentials, setDifferentialsState] = useState<Differential[]>(() =>
+    loadFromStorage<Differential[]>(STORAGE_KEYS.DIFFERENTIALS, []),
   );
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -229,8 +249,11 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const fhDataRef = useRef(fhData);
   const shDataRef = useRef(shData);
   const rosDataRef = useRef(rosData);
+  const differentialsRef = useRef(differentials);
   const currentStageRef = useRef(currentStage);
+  const statusRef = useRef(status);
   const modeRef = useRef(mode);
+  const isSavingRef = useRef(false);
 
   // Keep refs in sync
   useEffect(() => {
@@ -242,7 +265,9 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     fhDataRef.current = fhData;
     shDataRef.current = shData;
     rosDataRef.current = rosData;
+    differentialsRef.current = differentials;
     currentStageRef.current = currentStage;
+    statusRef.current = status;
     modeRef.current = mode;
   }, [
     biodata,
@@ -253,7 +278,9 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     fhData,
     shData,
     rosData,
+    differentials,
     currentStage,
+    status,
     mode,
   ]);
 
@@ -299,12 +326,24 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   }, [mode]);
 
   useEffect(() => {
+    saveToStorage(STORAGE_KEYS.DIFFERENTIALS, differentials);
+  }, [differentials]);
+
+  useEffect(() => {
+    saveToStorage(STORAGE_KEYS.STATUS, status);
+  }, [status]);
+
+  useEffect(() => {
     saveToStorage(STORAGE_KEYS.STAGE, currentStage);
   }, [currentStage]);
 
   useEffect(() => {
     saveToStorage(STORAGE_KEYS.HINTS, hintHistory);
   }, [hintHistory]);
+
+  useEffect(() => {
+    saveToStorage(STORAGE_KEYS.SESSION_ID, sessionId);
+  }, [sessionId]);
 
   const refreshUser = useCallback(async () => {
     const freshUser = await getCurrentUser();
@@ -340,6 +379,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       setSessionId(session.id);
       setCurrentStage(session.currentStage as SessionStage);
       setModeState(session.mode as AssistanceMode);
+      setStatusState(session.status as any);
 
       const data = session.data as any;
       if (data) {
@@ -351,6 +391,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         if (data.fh) setFhDataState(data.fh);
         if (data.sh) setShDataState(data.sh);
         if (data.ros) setRosDataState(data.ros);
+        if (data.differentials) setDifferentialsState(data.differentials);
       }
     }
   }, []);
@@ -376,8 +417,15 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       return false;
     };
 
-    if (!user || !hasMeaningfulData()) return;
+    if (
+      !user ||
+      !hasMeaningfulData() ||
+      isSavingRef.current ||
+      statusRef.current === 'COMPLETED'
+    )
+      return sessionId;
 
+    isSavingRef.current = true;
     setIsSaving(true);
     try {
       const data = {
@@ -389,21 +437,27 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         fh: fhDataRef.current,
         sh: shDataRef.current,
         ros: rosDataRef.current,
+        differentials: differentialsRef.current,
       };
 
       const result = await saveSessionAction({
         id: sessionId || undefined,
         currentStage: currentStageRef.current,
+        status: statusRef.current,
         mode: modeRef.current,
         data,
       });
 
       if (result.success && result.session) {
         setSessionId(result.session.id);
+        return result.session.id;
       }
+      return sessionId;
     } catch (error) {
       console.error('Auto-save failed:', error);
+      return sessionId;
     } finally {
+      isSavingRef.current = false;
       // Small delay to make the "Saved" state visible/smooth
       setTimeout(() => setIsSaving(false), 1000);
     }
@@ -517,6 +571,16 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     setDhDataState(data);
   }, []);
 
+  const setDifferentials = useCallback((data: Differential[]) => {
+    setDifferentialsState(data);
+    differentialsRef.current = data;
+  }, []);
+
+  const setStatus = useCallback((s: 'ACTIVE' | 'COMPLETED') => {
+    setStatusState(s);
+    statusRef.current = s;
+  }, []);
+
   // Automatically add stage-specific hints when currentStage changes
   useEffect(() => {
     // Check if we already have a guidance hint for this stage in the entire history
@@ -628,6 +692,8 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       setFhData,
       setShData,
       setRosData,
+      setDifferentials,
+      setStatus,
       addHint,
       setMode,
       maxStageIndex,
@@ -644,6 +710,8 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       setSessionId,
       loadSessionFromDb,
       saveCurrentSession,
+      differentials,
+      status,
     }),
     [
       user,
@@ -670,6 +738,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       setFhData,
       setShData,
       setRosData,
+      setDifferentials,
       addHint,
       setMode,
       nextStage,
@@ -681,6 +750,9 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       sessionId,
       loadSessionFromDb,
       saveCurrentSession,
+      differentials,
+      status,
+      setStatus,
     ],
   );
 

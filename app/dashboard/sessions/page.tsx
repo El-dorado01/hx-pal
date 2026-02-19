@@ -22,6 +22,7 @@ import {
   Clock,
   User as UserIcon,
   Activity,
+  Lightbulb,
 } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
@@ -212,10 +213,20 @@ export default function SessionsPage() {
                   <TableCell>
                     <div className='flex items-center gap-1.5'>
                       <Badge
-                        variant='secondary'
-                        className='rounded-none text-[10px] uppercase font-bold tracking-widest px-2 py-0.5'
+                        variant={
+                          session.status === 'COMPLETED'
+                            ? 'outline'
+                            : 'secondary'
+                        }
+                        className={`rounded-none text-[10px] uppercase font-bold tracking-widest px-2 py-0.5 ${
+                          session.status === 'COMPLETED'
+                            ? 'border-green-500 text-green-500 bg-green-500/5'
+                            : ''
+                        }`}
                       >
-                        {session.currentStage.replace('_', ' ')}
+                        {session.status === 'COMPLETED'
+                          ? 'COMPLETED'
+                          : session.currentStage.replace('_', ' ')}
                       </Badge>
                     </div>
                   </TableCell>
@@ -246,14 +257,18 @@ export default function SessionsPage() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent
                         align='end'
-                        className='rounded-none w-48'
+                        className='rounded-none w-56'
                       >
                         <DropdownMenuItem
                           asChild
                           className='cursor-pointer'
                         >
                           <Link
-                            href={`/dashboard/session/start?id=${session.id}`}
+                            href={
+                              session.status === 'COMPLETED'
+                                ? `/dashboard/sessions/${session.id}`
+                                : `/dashboard/session/start?id=${session.id}`
+                            }
                             className='flex items-center'
                           >
                             <Play className='mr-2 size-4 text-primary' />
@@ -262,6 +277,23 @@ export default function SessionsPage() {
                               : 'Resume Session'}
                           </Link>
                         </DropdownMenuItem>
+                        {session.status === 'COMPLETED' && (
+                          <DropdownMenuItem
+                            disabled
+                            className='cursor-not-allowed opacity-50 flex items-center justify-between whitespace-nowrap'
+                          >
+                            <div className='flex items-center'>
+                              <Lightbulb className='mr-2 size-4 text-muted-foreground' />
+                              <span>Brainstorm Session</span>
+                            </div>
+                            <Badge
+                              variant='outline'
+                              className='ml-2 text-[8px] h-4 px-1 rounded-none border-primary/20 text-primary uppercase font-bold'
+                            >
+                              Soon
+                            </Badge>
+                          </DropdownMenuItem>
+                        )}
                         <DropdownMenuItem
                           className='text-destructive cursor-pointer'
                           onClick={() => setDeleteId(session.id)}
