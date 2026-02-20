@@ -97,6 +97,27 @@ export async function getSessionByIdAction(id: string) {
   }
 }
 
+export async function getActiveSessionAction() {
+  const session = await getSession();
+  if (!session?.user?.id) return { error: 'Unauthorized' };
+
+  try {
+    const dbSession = await prisma.session.findFirst({
+      where: {
+        userId: session.user.id,
+        status: 'ACTIVE',
+      },
+      orderBy: { updatedAt: 'desc' },
+    });
+
+    if (!dbSession) return { success: true, session: null };
+    return { success: true, session: dbSession };
+  } catch (error: any) {
+    console.error('Error fetching active session:', error);
+    return { error: 'Failed to fetch active session' };
+  }
+}
+
 export async function deleteSessionAction(id: string) {
   const session = await getSession();
   if (!session?.user?.id) return { error: 'Unauthorized' };

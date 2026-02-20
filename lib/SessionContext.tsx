@@ -23,6 +23,7 @@ import {
 } from '@/app/actions/preferences';
 import {
   getSessionByIdAction,
+  getActiveSessionAction,
   saveSessionAction,
 } from '@/app/actions/sessions';
 import { useTheme } from 'next-themes';
@@ -72,6 +73,7 @@ interface SessionContextType {
   hintHistory: Hint[];
   maxStageIndex: number;
   isAnalyzing: boolean;
+  isHydrating: boolean;
   sessionId: string | null;
   setSessionId: (id: string | null) => void;
   loadSessionFromDb: (id: string) => Promise<void>;
@@ -86,6 +88,8 @@ interface SessionContextType {
   setRosData: (system: string, notes: string) => void;
   setDifferentials: (data: Differential[]) => void;
   setStatus: (status: 'ACTIVE' | 'COMPLETED') => void;
+  /** DB-first: saves COMPLETED to DB then updates local state on success. */
+  endSession: () => Promise<void>;
   addHint: (message: string, stage?: string) => void;
   setMode: (mode: AssistanceMode) => void;
   setTheme: (theme: string) => void;
@@ -145,9 +149,6 @@ const saveToStorage = <T,>(key: string, value: T): void => {
   if (typeof window === 'undefined') return;
   try {
     if (value === null || value === undefined) {
-      // Don't save null/undefined, effectively clearing it if it was there
-      // but only if we explicitly want to clear.
-      // For lazy persistence, we just skip writing the key if it's null.
       return;
     }
 
@@ -159,6 +160,20 @@ const saveToStorage = <T,>(key: string, value: T): void => {
     window.localStorage.setItem(key, JSON.stringify(value));
   } catch (error) {
     console.error(`Error saving ${key} to localStorage:`, error);
+  }
+};
+
+/** Write a value unconditionally to localStorage (even empty/null). */
+const forceToStorage = <T,>(key: string, value: T): void => {
+  if (typeof window === 'undefined') return;
+  try {
+    if (value === null || value === undefined) {
+      window.localStorage.removeItem(key);
+    } else {
+      window.localStorage.setItem(key, JSON.stringify(value));
+    }
+  } catch (error) {
+    console.error(`Error force-saving ${key} to localStorage:`, error);
   }
 };
 
@@ -216,6 +231,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   );
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isHydrating, setIsHydrating] = useState(false);
   const [maxStageIndex, setMaxStageIndex] = useState<number>(() =>
     loadFromStorage<number>(STORAGE_KEYS.MAX_STAGE, 0),
   );
@@ -253,6 +269,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const currentStageRef = useRef(currentStage);
   const statusRef = useRef(status);
   const modeRef = useRef(mode);
+  const sessionIdRef = useRef(sessionId);
   const isSavingRef = useRef(false);
 
   // Keep refs in sync
@@ -269,6 +286,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     currentStageRef.current = currentStage;
     statusRef.current = status;
     modeRef.current = mode;
+    sessionIdRef.current = sessionId;
   }, [
     biodata,
     presentingComplaints,
@@ -282,7 +300,108 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     currentStage,
     status,
     mode,
+    sessionId,
   ]);
+
+  // ---------------------------------------------------------------------------
+  // Apply a raw DB session record to all local state + mirror to localStorage
+  // ---------------------------------------------------------------------------
+  const applyDbSession = useCallback(
+    (session: {
+      id: string;
+      currentStage: string;
+      mode: string;
+      status: string;
+      data: any;
+    }) => {
+      // Core session fields
+      setSessionId(session.id);
+      forceToStorage(STORAGE_KEYS.SESSION_ID, session.id);
+
+      setCurrentStage(session.currentStage as SessionStage);
+      forceToStorage(STORAGE_KEYS.STAGE, session.currentStage);
+
+      setModeState(session.mode as AssistanceMode);
+      forceToStorage(STORAGE_KEYS.MODE, session.mode);
+
+      setStatusState(session.status as 'ACTIVE' | 'COMPLETED');
+      forceToStorage(STORAGE_KEYS.STATUS, session.status);
+
+      // Nested data payload
+      const data = session.data as any;
+      if (data) {
+        if (data.biodata !== undefined) {
+          setBiodataState(data.biodata);
+          forceToStorage(STORAGE_KEYS.BIODATA, data.biodata);
+        }
+        if (data.complaints !== undefined) {
+          setPresentingComplaintsState(data.complaints);
+          forceToStorage(STORAGE_KEYS.COMPLAINTS, data.complaints);
+        }
+        if (data.hpc !== undefined) {
+          setHpcDataState(data.hpc);
+          forceToStorage(STORAGE_KEYS.HPC_DATA, data.hpc);
+        }
+        if (data.pmh !== undefined) {
+          setPmhDataState(data.pmh);
+          forceToStorage(STORAGE_KEYS.PMH_DATA, data.pmh);
+        }
+        if (data.dh !== undefined) {
+          setDhDataState(data.dh);
+          forceToStorage(STORAGE_KEYS.DH_DATA, data.dh);
+        }
+        if (data.fh !== undefined) {
+          setFhDataState(data.fh);
+          forceToStorage(STORAGE_KEYS.FH_DATA, data.fh);
+        }
+        if (data.sh !== undefined) {
+          setShDataState(data.sh);
+          forceToStorage(STORAGE_KEYS.SH_DATA, data.sh);
+        }
+        if (data.ros !== undefined) {
+          setRosDataState(data.ros);
+          forceToStorage(STORAGE_KEYS.ROS_DATA, data.ros);
+        }
+        if (data.differentials !== undefined) {
+          setDifferentialsState(data.differentials);
+          forceToStorage(STORAGE_KEYS.DIFFERENTIALS, data.differentials);
+        }
+      }
+    },
+    [],
+  );
+
+  // ---------------------------------------------------------------------------
+  // On mount: DB is the priority source of truth.
+  // Fetch the DB record for the current session (URL id > stored id > active).
+  // Whatever the DB returns overwrites localStorage.
+  // ---------------------------------------------------------------------------
+  const hasHydratedRef = useRef(false);
+  useEffect(() => {
+    if (hasHydratedRef.current) return;
+    hasHydratedRef.current = true;
+
+    const idToLoad = urlSessionId || sessionId;
+
+    const fetchAndApply = async (id: string) => {
+      const result = await getSessionByIdAction(id);
+      if (result.success && result.session) {
+        applyDbSession(result.session);
+      }
+    };
+
+    const fetchActiveAndApply = async () => {
+      const result = await getActiveSessionAction();
+      if (result.success && result.session) {
+        applyDbSession(result.session);
+      }
+    };
+
+    setIsHydrating(true);
+    (idToLoad ? fetchAndApply(idToLoad) : fetchActiveAndApply())
+      .catch((err) => console.error('DB hydration error:', err))
+      .finally(() => setIsHydrating(false));
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps — intentionally runs once on mount
 
   // Save to localStorage whenever data changes
   useEffect(() => {
@@ -372,29 +491,15 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     }
   }, [user, setNextTheme, mode]);
 
-  const loadSessionFromDb = useCallback(async (id: string) => {
-    const result = await getSessionByIdAction(id);
-    if (result.success && result.session) {
-      const { session } = result;
-      setSessionId(session.id);
-      setCurrentStage(session.currentStage as SessionStage);
-      setModeState(session.mode as AssistanceMode);
-      setStatusState(session.status as any);
-
-      const data = session.data as any;
-      if (data) {
-        if (data.biodata) setBiodataState(data.biodata);
-        if (data.complaints) setPresentingComplaintsState(data.complaints);
-        if (data.hpc) setHpcDataState(data.hpc);
-        if (data.pmh) setPmhDataState(data.pmh);
-        if (data.dh) setDhDataState(data.dh);
-        if (data.fh) setFhDataState(data.fh);
-        if (data.sh) setShDataState(data.sh);
-        if (data.ros) setRosDataState(data.ros);
-        if (data.differentials) setDifferentialsState(data.differentials);
+  const loadSessionFromDb = useCallback(
+    async (id: string) => {
+      const result = await getSessionByIdAction(id);
+      if (result.success && result.session) {
+        applyDbSession(result.session);
       }
-    }
-  }, []);
+    },
+    [applyDbSession],
+  );
 
   const saveCurrentSession = useCallback(async () => {
     const hasMeaningfulData = () => {
@@ -423,7 +528,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       isSavingRef.current ||
       statusRef.current === 'COMPLETED'
     )
-      return sessionId;
+      return sessionIdRef.current;
 
     isSavingRef.current = true;
     setIsSaving(true);
@@ -441,7 +546,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       };
 
       const result = await saveSessionAction({
-        id: sessionId || undefined,
+        id: sessionIdRef.current || undefined,
         currentStage: currentStageRef.current,
         status: statusRef.current,
         mode: modeRef.current,
@@ -452,16 +557,64 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         setSessionId(result.session.id);
         return result.session.id;
       }
-      return sessionId;
+      return sessionIdRef.current;
     } catch (error) {
       console.error('Auto-save failed:', error);
-      return sessionId;
+      return sessionIdRef.current;
     } finally {
       isSavingRef.current = false;
       // Small delay to make the "Saved" state visible/smooth
       setTimeout(() => setIsSaving(false), 1000);
     }
-  }, [user, sessionId]);
+  }, [user]);
+
+  // ---------------------------------------------------------------------------
+  // endSession — DB-first: persists COMPLETED to DB, then updates local state.
+  // Never writes COMPLETED to localStorage before DB confirms.
+  // ---------------------------------------------------------------------------
+  const endSession = useCallback(async () => {
+    if (!user) return;
+
+    isSavingRef.current = true;
+    setIsSaving(true);
+    try {
+      const data = {
+        biodata: biodataRef.current,
+        complaints: presentingComplaintsRef.current,
+        hpc: hpcDataRef.current,
+        pmh: pmhDataRef.current,
+        dh: dhDataRef.current,
+        fh: fhDataRef.current,
+        sh: shDataRef.current,
+        ros: rosDataRef.current,
+        differentials: differentialsRef.current,
+      };
+
+      const result = await saveSessionAction({
+        id: sessionIdRef.current || undefined,
+        currentStage: currentStageRef.current,
+        status: 'COMPLETED',
+        mode: modeRef.current,
+        data,
+      });
+
+      if (result.success && result.session) {
+        // DB confirmed — now safe to update local state + localStorage
+        setSessionId(result.session.id);
+        setStatusState('COMPLETED');
+        statusRef.current = 'COMPLETED';
+        forceToStorage(STORAGE_KEYS.STATUS, 'COMPLETED');
+        forceToStorage(STORAGE_KEYS.SESSION_ID, result.session.id);
+      } else {
+        console.error('Failed to end session in DB:', result);
+      }
+    } catch (error) {
+      console.error('endSession failed:', error);
+    } finally {
+      isSavingRef.current = false;
+      setTimeout(() => setIsSaving(false), 1000);
+    }
+  }, [user]);
 
   // Sync mode from URL if present
   useEffect(() => {
@@ -471,13 +624,6 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       setModeState(urlMode as AssistanceMode);
     }
   }, [searchParams, mode]);
-
-  // Load session if ID is in URL
-  useEffect(() => {
-    if (urlSessionId && urlSessionId !== sessionId) {
-      loadSessionFromDb(urlSessionId);
-    }
-  }, [urlSessionId, sessionId, loadSessionFromDb]);
 
   // Auto-save to DB on stage change
   useEffect(() => {
@@ -576,6 +722,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     differentialsRef.current = data;
   }, []);
 
+  // Kept for backward-compat; prefer endSession() for COMPLETED transitions.
   const setStatus = useCallback((s: 'ACTIVE' | 'COMPLETED') => {
     setStatusState(s);
     statusRef.current = s;
@@ -694,6 +841,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       setRosData,
       setDifferentials,
       setStatus,
+      endSession,
       addHint,
       setMode,
       maxStageIndex,
@@ -705,6 +853,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       isAnalyzing,
       setIsAnalyzing,
       isSaving,
+      isHydrating,
       refreshUser,
       sessionId,
       setSessionId,
@@ -746,6 +895,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       goToStage,
       isAnalyzing,
       isSaving,
+      isHydrating,
       refreshUser,
       sessionId,
       loadSessionFromDb,
@@ -753,6 +903,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       differentials,
       status,
       setStatus,
+      endSession,
     ],
   );
 

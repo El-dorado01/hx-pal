@@ -27,6 +27,21 @@ export default function NewSessionPage() {
 
   // Check for existing data on mount
   React.useEffect(() => {
+    // If the stored session is already COMPLETED, treat it as no active session.
+    // The End Session flow persists to DB and then clears localStorage, but as a
+    // safety net we also ignore COMPLETED data here so the modal never appears.
+    const storedStatus = window.localStorage.getItem('hx-pal-status');
+    if (storedStatus === '"COMPLETED"' || storedStatus === 'COMPLETED') {
+      // Clean it up silently and proceed to mode selection / preference redirect
+      window.localStorage.clear();
+      if (mode !== 'ASK') {
+        router.push(`/dashboard/session/start?mode=${mode}`);
+      } else {
+        setIsCheckingPreferences(false);
+      }
+      return;
+    }
+
     const keys = [
       'hx-pal-biodata',
       'hx-pal-complaints',
@@ -54,19 +69,8 @@ export default function NewSessionPage() {
 
     if (exists) {
       setHasExistingData(true);
-
-      // If we have a preference set (not ASK), we skip to start
-      // BUT if we have data, maybe we should still prompt to resume?
-      // User says: "if there's no active session detected, move to /session/start"
-      // This implies if there IS an active session, we might want to prompt or just resume.
-      // Let's stick to the prompt if data exists, but skip mode selection.
-      if (mode !== 'ASK') {
-        setShowResumeDialog(true);
-        setIsCheckingPreferences(false);
-      } else {
-        setShowResumeDialog(true);
-        setIsCheckingPreferences(false);
-      }
+      setShowResumeDialog(true);
+      setIsCheckingPreferences(false);
     } else {
       // No data exists. If we have a preference, skip selection entirely.
       if (mode !== 'ASK') {
@@ -101,6 +105,8 @@ export default function NewSessionPage() {
       'hx-pal-sh',
       'hx-pal-ros',
       'hx-pal-stage',
+      'hx-pal-status',
+      'hx-pal-session-id',
     ];
     keys.forEach((key) => window.localStorage.removeItem(key));
   };

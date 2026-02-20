@@ -21,6 +21,7 @@ import {
   Activity,
   AlertCircle,
   ChevronDown,
+  ChevronUp,
   Loader2,
   Calendar,
   Hash,
@@ -28,6 +29,8 @@ import {
   Presentation,
   Mic,
   BookOpen,
+  Copy,
+  Check,
 } from 'lucide-react';
 import {
   generateClinicalSummary,
@@ -43,6 +46,7 @@ import {
   AccordionTrigger,
 } from '@/components/ui/accordion';
 import { Badge } from '@/components/ui/badge';
+import { Separator } from '../ui/separator';
 
 export function SummaryView({ readOnly = false }: { readOnly?: boolean }) {
   const session = useSession();
@@ -53,6 +57,16 @@ export function SummaryView({ readOnly = false }: { readOnly?: boolean }) {
   );
   const [isGenerating, setIsGenerating] = useState(false);
   const [isEnding, setIsEnding] = useState(false);
+  const [narrativeCollapsed, setNarrativeCollapsed] = useState(false);
+  const [narrativeCopied, setNarrativeCopied] = useState(false);
+  const [reportCollapsed, setReportCollapsed] = useState(false);
+
+  const handleCopyNarrative = async () => {
+    if (!presentationReport) return;
+    await navigator.clipboard.writeText(presentationReport);
+    setNarrativeCopied(true);
+    setTimeout(() => setNarrativeCopied(false), 2000);
+  };
 
   const handleGenerateReport = async () => {
     setIsGenerating(true);
@@ -235,20 +249,17 @@ export function SummaryView({ readOnly = false }: { readOnly?: boolean }) {
 
   const handleFinalizeSession = async (save: boolean) => {
     setIsEnding(true);
-    let finalId = session.sessionId;
 
     if (save) {
-      session.setStatus('COMPLETED');
-      // The saveCurrentSession call will use the latest statusRef.current
-      const resultId = await session.saveCurrentSession();
-      if (resultId) finalId = resultId;
-      toast.success('Session saved to database');
+      // endSession() writes COMPLETED to DB first, then updates local state on success.
+      await session.endSession();
+      toast.success('Session saved.');
     }
 
-    // Small delay for UX and to ensure save triggers
+    // Wait briefly for state to settle, then navigate
+    const finalId = session.sessionId;
     setTimeout(() => {
       try {
-        // We clear localStorage only after a successful save or if discarding
         window.localStorage.clear();
         window.location.href = `/dashboard/sessions/${finalId}`;
       } catch (err) {
@@ -257,7 +268,10 @@ export function SummaryView({ readOnly = false }: { readOnly?: boolean }) {
     }, 800);
   };
 
-  // Render Helpers
+  // ---------------------------------------------------------------------------
+  // Render Helpers — all body text: text-sm (14px), sub-labels: text-xs (12px)
+  // ---------------------------------------------------------------------------
+
   const renderFamilyHistory = () => {
     if (!session.fhData) return 'None recorded';
     try {
@@ -266,7 +280,7 @@ export function SummaryView({ readOnly = false }: { readOnly?: boolean }) {
       if (relatives.length === 0 && !parsed.notes) return 'None recorded';
 
       return (
-        <div className='text-xs space-y-3'>
+        <div className='text-sm space-y-3'>
           {relatives.length > 0 && (
             <ul className='list-disc pl-4 space-y-1'>
               {relatives.map((r: any, i: number) => (
@@ -280,7 +294,7 @@ export function SummaryView({ readOnly = false }: { readOnly?: boolean }) {
           )}
           {parsed.notes && (
             <div className='pt-1'>
-              <p className='text-[10px] uppercase font-bold text-muted-foreground mb-1'>
+              <p className='text-xs uppercase font-bold text-muted-foreground mb-1'>
                 Additional Notes
               </p>
               <p className='italic'>{parsed.notes}</p>
@@ -298,14 +312,14 @@ export function SummaryView({ readOnly = false }: { readOnly?: boolean }) {
     try {
       const parsed = JSON.parse(session.shData);
       return (
-        <div className='text-xs space-y-3'>
-          <div className='grid grid-cols-2 gap-2 text-[10px]'>
+        <div className='text-sm space-y-3'>
+          <div className='grid grid-cols-2 gap-2'>
             {parsed.tobacco && (
               <div className='p-2 bg-muted/30 border border-border/50'>
-                <p className='font-bold uppercase text-muted-foreground mb-1'>
+                <p className='text-xs font-bold uppercase text-muted-foreground mb-1'>
                   Tobacco
                 </p>
-                <p className='text-xs font-medium'>{parsed.tobacco.status}</p>
+                <p className='font-medium'>{parsed.tobacco.status}</p>
                 {parsed.tobacco.packYears > 0 && (
                   <p className='text-primary font-bold'>
                     {parsed.tobacco.packYears} Pack-years
@@ -315,10 +329,10 @@ export function SummaryView({ readOnly = false }: { readOnly?: boolean }) {
             )}
             {parsed.alcohol && (
               <div className='p-2 bg-muted/30 border border-border/50'>
-                <p className='font-bold uppercase text-muted-foreground mb-1'>
+                <p className='text-xs font-bold uppercase text-muted-foreground mb-1'>
                   Alcohol
                 </p>
-                <p className='text-xs font-medium'>{parsed.alcohol.status}</p>
+                <p className='font-medium'>{parsed.alcohol.status}</p>
                 {parsed.alcohol.unitsPerWeek > 0 && (
                   <p className='text-primary font-bold'>
                     {parsed.alcohol.unitsPerWeek} Units/week
@@ -331,7 +345,7 @@ export function SummaryView({ readOnly = false }: { readOnly?: boolean }) {
           <div className='space-y-2'>
             {parsed.livingSituation && (
               <div>
-                <p className='text-[10px] uppercase font-bold text-muted-foreground'>
+                <p className='text-xs uppercase font-bold text-muted-foreground'>
                   Living Situation
                 </p>
                 <p>{parsed.livingSituation}</p>
@@ -339,7 +353,7 @@ export function SummaryView({ readOnly = false }: { readOnly?: boolean }) {
             )}
             {parsed.extraNotes && (
               <div>
-                <p className='text-[10px] uppercase font-bold text-primary'>
+                <p className='text-xs uppercase font-bold text-primary'>
                   Obstetric / Extra Context
                 </p>
                 <p className='italic'>{parsed.extraNotes}</p>
@@ -358,7 +372,7 @@ export function SummaryView({ readOnly = false }: { readOnly?: boolean }) {
     if (hpcEntries.length === 0) return 'None recorded';
 
     return (
-      <div className='text-xs space-y-4'>
+      <div className='text-sm space-y-4'>
         {hpcEntries.map(([id, data]) => {
           const complaint = session.presentingComplaints.find(
             (c) => c.id === id,
@@ -368,13 +382,13 @@ export function SummaryView({ readOnly = false }: { readOnly?: boolean }) {
               key={id}
               className='border-l-2 border-primary/20 pl-3 space-y-1'
             >
-              <p className='font-bold text-primary uppercase text-[10px] mb-1'>
+              <p className='font-bold text-primary uppercase text-xs mb-1'>
                 {complaint?.complaint || 'Unidentified Complaint'}
               </p>
               {typeof data.character === 'string' ? (
                 <p>{data.character}</p>
               ) : (
-                <div className='grid grid-cols-2 gap-x-4 gap-y-1 text-[10px]'>
+                <div className='grid grid-cols-2 gap-x-4 gap-y-1'>
                   <p>
                     <strong>Site:</strong> {data.character.site || 'N/A'}
                   </p>
@@ -391,7 +405,7 @@ export function SummaryView({ readOnly = false }: { readOnly?: boolean }) {
                   </p>
                 </div>
               )}
-              <div className='pt-1 text-[10px] italic text-muted-foreground'>
+              <div className='pt-1 text-sm italic text-muted-foreground'>
                 <p>Course: {data.course}</p>
                 <p>Cause: {data.cause}</p>
               </div>
@@ -411,10 +425,10 @@ export function SummaryView({ readOnly = false }: { readOnly?: boolean }) {
         return 'None recorded';
 
       return (
-        <div className='text-xs space-y-3'>
+        <div className='text-sm space-y-3'>
           {conditions.length > 0 && (
             <div className='space-y-1'>
-              <p className='text-[10px] uppercase font-bold text-muted-foreground'>
+              <p className='text-xs uppercase font-bold text-muted-foreground'>
                 Conditions
               </p>
               <ul className='list-disc pl-4'>
@@ -430,7 +444,7 @@ export function SummaryView({ readOnly = false }: { readOnly?: boolean }) {
           )}
           {parsed.surgicalHistory && (
             <div>
-              <p className='text-[10px] uppercase font-bold text-muted-foreground'>
+              <p className='text-xs uppercase font-bold text-muted-foreground'>
                 Surgical History
               </p>
               <p>{parsed.surgicalHistory}</p>
@@ -438,7 +452,7 @@ export function SummaryView({ readOnly = false }: { readOnly?: boolean }) {
           )}
           {parsed.notes && (
             <div>
-              <p className='text-[10px] uppercase font-bold text-muted-foreground'>
+              <p className='text-xs uppercase font-bold text-muted-foreground'>
                 Notes
               </p>
               <p className='italic'>{parsed.notes}</p>
@@ -467,10 +481,10 @@ export function SummaryView({ readOnly = false }: { readOnly?: boolean }) {
         return 'None recorded';
 
       return (
-        <div className='text-xs space-y-4'>
+        <div className='text-sm space-y-4'>
           {medications.length > 0 && (
             <div className='space-y-1'>
-              <p className='text-[10px] uppercase font-bold text-muted-foreground'>
+              <p className='text-xs uppercase font-bold text-muted-foreground'>
                 Current Medications
               </p>
               <ul className='list-disc pl-4'>
@@ -485,7 +499,7 @@ export function SummaryView({ readOnly = false }: { readOnly?: boolean }) {
           )}
 
           <div className='space-y-1'>
-            <p className='text-[10px] uppercase font-bold text-red-500'>
+            <p className='text-xs uppercase font-bold text-red-500'>
               Allergies
             </p>
             {parsed.nkda ? (
@@ -508,7 +522,7 @@ export function SummaryView({ readOnly = false }: { readOnly?: boolean }) {
 
           {parsed.notes && (
             <div>
-              <p className='text-[10px] uppercase font-bold text-muted-foreground'>
+              <p className='text-xs uppercase font-bold text-muted-foreground'>
                 Notes
               </p>
               <p className='italic'>{parsed.notes}</p>
@@ -527,13 +541,13 @@ export function SummaryView({ readOnly = false }: { readOnly?: boolean }) {
     if (entries.length === 0) return 'None recorded';
 
     return (
-      <div className='text-xs grid grid-cols-1 gap-2'>
+      <div className='text-sm grid grid-cols-1 gap-2'>
         {entries.map(([system, notes]) => (
           <div
             key={system}
             className='border-l-2 border-primary/10 pl-2'
           >
-            <p className='text-[10px] font-bold uppercase text-muted-foreground'>
+            <p className='text-xs font-bold uppercase text-muted-foreground'>
               {system}
             </p>
             <p>{notes as string}</p>
@@ -544,7 +558,7 @@ export function SummaryView({ readOnly = false }: { readOnly?: boolean }) {
   };
 
   return (
-    <div className='flex flex-col h-full max-w-4xl mx-auto p-4 md:p-6 space-y-6 overflow-y-auto overflow-x-hidden pb-32'>
+    <div className='flex flex-col h-full max-w-5xl mx-auto p-4 md:p-6 space-y-6 overflow-y-auto overflow-x-hidden pb-8'>
       <div className='flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-border/10 pb-6'>
         <div className='space-y-1'>
           <h2 className='text-2xl font-black uppercase tracking-tighter flex items-center gap-2'>
@@ -568,19 +582,19 @@ export function SummaryView({ readOnly = false }: { readOnly?: boolean }) {
           <div className='flex flex-wrap gap-3 mt-2 sm:mt-0'>
             <Badge
               variant='outline'
-              className='rounded-none py-1 px-3 flex items-center gap-2 bg-muted/50 border-border/50 text-[10px] font-bold uppercase tracking-widest'
+              className='rounded-none py-1 px-3 flex items-center gap-2 bg-muted/50 border-border/50 text-xs font-bold uppercase tracking-widest'
             >
               <Calendar className='w-3 h-3' />
               {new Date().toLocaleDateString(undefined, { dateStyle: 'long' })}
             </Badge>
             <Badge
               variant='outline'
-              className='rounded-none py-1 px-3 flex items-center gap-2 bg-muted/50 border-border/50 text-[10px] font-bold uppercase tracking-widest'
+              className='rounded-none py-1 px-3 flex items-center gap-2 bg-muted/50 border-border/50 text-xs font-bold uppercase tracking-widest'
             >
               <Hash className='w-3 h-3' />
               {sessionId?.slice(-8).toUpperCase() || '---'}
             </Badge>
-            <Badge className='rounded-none py-1 px-3 bg-green-500 hover:bg-green-500 text-white border-0 text-[10px] font-bold uppercase tracking-widest'>
+            <Badge className='rounded-none py-1 px-3 bg-green-500 hover:bg-green-500 text-white border-0 text-xs font-bold uppercase tracking-widest'>
               COMPLETED
             </Badge>
           </div>
@@ -590,25 +604,26 @@ export function SummaryView({ readOnly = false }: { readOnly?: boolean }) {
       <div className='grid gap-6'>
         {/* AI Action Area */}
         {readOnly ? (
-          <div className='flex flex-col sm:flex-row items-center justify-between gap-4 p-4 bg-muted/30 border border-border/50'>
+          <div className='flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 p-4 bg-muted/30 border border-border/50'>
             <div className='flex items-center gap-3'>
               <div className='p-2 bg-primary/10 rounded-full'>
                 <Sparkles className='w-4 h-4 text-primary' />
               </div>
               <div>
-                <p className='text-[10px] font-black uppercase tracking-widest text-muted-foreground'>
+                <p className='text-xs font-black uppercase tracking-widest text-muted-foreground'>
                   Clinical Analysis
                 </p>
-                <p className='text-xs font-medium'>
+                <p className='text-md font-medium'>
                   Regenerate or update clinical outputs
                 </p>
               </div>
             </div>
-            <div className='flex flex-wrap items-center gap-2 w-full sm:w-auto overflow-x-hidden pb-2 sm:pb-0'>
+            <Separator className='w-full lg:hidden' />
+            <div className='flex flex-wrap items-center gap-2 w-full lg:w-auto overflow-x-hidden pb-2 lg:pb-0'>
               <Button
-                variant='ghost'
+                variant='outline'
                 size='sm'
-                className='flex-1 sm:flex-none text-[10px] font-bold uppercase tracking-widest h-9 px-4 hover:bg-primary/5 text-primary'
+                className='flex-1 lg:flex-none text-xs font-bold uppercase tracking-widest h-9 px-4 hover:bg-primary/5 text-primary'
                 onClick={handleGeneratePresentation}
                 disabled={isGenerating}
               >
@@ -620,9 +635,9 @@ export function SummaryView({ readOnly = false }: { readOnly?: boolean }) {
                 Case Story
               </Button>
               <Button
-                variant='ghost'
+                variant='outline'
                 size='sm'
-                className='flex-1 sm:flex-none text-[10px] font-bold uppercase tracking-widest h-9 px-4 hover:bg-primary/5 text-primary'
+                className='flex-1 lg:flex-none text-xs font-bold uppercase tracking-widest h-9 px-4 hover:bg-primary/5 text-primary'
                 onClick={handleOnlyGenerateReport}
                 disabled={isGenerating}
               >
@@ -635,9 +650,9 @@ export function SummaryView({ readOnly = false }: { readOnly?: boolean }) {
               </Button>
               {session.differentials.length === 0 && (
                 <Button
-                  variant='ghost'
+                  variant='outline'
                   size='sm'
-                  className='flex-1 sm:flex-none text-[10px] font-bold uppercase tracking-widest h-9 px-4 hover:bg-primary/5 text-primary'
+                  className='flex-1 lg:flex-none text-xs font-bold uppercase tracking-widest h-9 px-4 hover:bg-primary/5 text-primary'
                   onClick={handleGenerateDifferentials}
                   disabled={isGenerating}
                 >
@@ -653,7 +668,7 @@ export function SummaryView({ readOnly = false }: { readOnly?: boolean }) {
                 <Button
                   variant='outline'
                   size='sm'
-                  className='flex-1 sm:flex-none text-[10px] font-bold uppercase tracking-widest h-9 px-4 border-primary/20 bg-primary/5 text-primary'
+                  className='flex-1 lg:flex-none text-xs font-bold uppercase tracking-widest h-9 px-4 border-primary/20 bg-primary/5 text-primary'
                   onClick={downloadAsDoc}
                 >
                   <Download className='w-3 h-3 mr-2' />
@@ -669,12 +684,12 @@ export function SummaryView({ readOnly = false }: { readOnly?: boolean }) {
                 <Sparkles className='w-5 h-5 text-primary' />
               </div>
               <div>
-                <h3 className='font-bold uppercase tracking-tight'>
+                <h3 className='text-base font-bold uppercase tracking-tight'>
                   {session.status === 'COMPLETED'
                     ? 'Clinical Analysis'
                     : 'Synthesize Clinical Findings'}
                 </h3>
-                <p className='text-xs text-muted-foreground text-balance'>
+                <p className='text-sm text-muted-foreground text-balance'>
                   {session.status === 'COMPLETED'
                     ? 'Review results or regenerate specific clinical outputs.'
                     : 'Let HX Pal synthesize all findings into a professional report and differentials.'}
@@ -685,7 +700,7 @@ export function SummaryView({ readOnly = false }: { readOnly?: boolean }) {
               {session.status === 'COMPLETED' ? (
                 <>
                   <Button
-                    className='flex-1 gap-2 font-bold uppercase tracking-wider py-2 text-xs sm:text-sm'
+                    className='flex-1 gap-2 font-bold uppercase tracking-wider py-2 text-sm'
                     onClick={handleOnlyGenerateReport}
                     disabled={isGenerating}
                   >
@@ -703,11 +718,10 @@ export function SummaryView({ readOnly = false }: { readOnly?: boolean }) {
                       )}
                     </span>
                   </Button>
-                  {/* Differentials button - hidden if differentials already exist */}
                   {session.differentials.length === 0 && (
                     <Button
                       variant='outline'
-                      className='flex-1 gap-2 font-bold uppercase tracking-wider border-primary text-primary hover:bg-primary/5 py-2 text-xs sm:text-sm'
+                      className='flex-1 gap-2 font-bold uppercase tracking-wider border-primary text-primary hover:bg-primary/5 py-2 text-sm'
                       onClick={handleGenerateDifferentials}
                       disabled={isGenerating}
                     >
@@ -730,7 +744,7 @@ export function SummaryView({ readOnly = false }: { readOnly?: boolean }) {
               ) : (
                 <div className='flex flex-col sm:flex-row gap-3 w-full'>
                   <Button
-                    className='flex-1 gap-2 font-bold uppercase tracking-wider py-2 text-xs sm:text-sm'
+                    className='flex-1 gap-2 font-bold uppercase tracking-wider py-2 text-sm'
                     onClick={handleGenerateReport}
                     disabled={isGenerating}
                   >
@@ -748,11 +762,10 @@ export function SummaryView({ readOnly = false }: { readOnly?: boolean }) {
                       )}
                     </span>
                   </Button>
-                  {/* Also show separate differenials button if they don't exist yet */}
                   {session.differentials.length === 0 && (
                     <Button
                       variant='outline'
-                      className='flex-1 gap-2 font-bold uppercase tracking-wider py-2 text-xs sm:text-sm'
+                      className='flex-1 gap-2 font-bold uppercase tracking-wider py-2 text-sm'
                       onClick={handleGenerateDifferentials}
                       disabled={isGenerating}
                     >
@@ -772,14 +785,51 @@ export function SummaryView({ readOnly = false }: { readOnly?: boolean }) {
         {presentationReport && (
           <Card className='border-2 border-primary/40 shadow-none overflow-hidden bg-muted/5'>
             <CardHeader className='bg-muted py-3'>
-              <CardTitle className='text-xs font-bold uppercase tracking-widest flex items-center gap-2 text-muted-foreground'>
-                <Presentation className='w-3 h-3' />
-                Clinical Narrative / Case Presentation
-              </CardTitle>
+              <div className='flex items-center justify-between gap-2'>
+                <CardTitle className='text-sm font-bold uppercase tracking-widest flex items-center gap-2 text-muted-foreground'>
+                  <Presentation className='w-4 min-w-4 h-4' />
+                  <span className='hidden sm:inline'>
+                    Clinical Narrative /
+                  </span>{' '}
+                  Case Presentation
+                </CardTitle>
+                <div className='flex items-center gap-1'>
+                  <Button
+                    variant='ghost'
+                    size='sm'
+                    className='h-7 px-2 text-xs text-muted-foreground hover:text-foreground gap-1'
+                    onClick={handleCopyNarrative}
+                  >
+                    {narrativeCopied ? (
+                      <>
+                        <Check className='w-3 h-3 text-green-500' /> Copied!
+                      </>
+                    ) : (
+                      <>
+                        <Copy className='w-3 h-3' /> Copy
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    variant='ghost'
+                    size='sm'
+                    className='h-7 px-2 text-muted-foreground hover:text-foreground'
+                    onClick={() => setNarrativeCollapsed((c) => !c)}
+                  >
+                    {narrativeCollapsed ? (
+                      <ChevronDown className='w-4 h-4' />
+                    ) : (
+                      <ChevronUp className='w-4 h-4' />
+                    )}
+                  </Button>
+                </div>
+              </div>
             </CardHeader>
-            <CardContent className='p-8 text-[15px] prose prose-sm max-w-none dark:prose-invert font-serif leading-loose text-zinc-800 dark:text-zinc-200'>
-              <ReactMarkdown>{presentationReport}</ReactMarkdown>
-            </CardContent>
+            {!narrativeCollapsed && (
+              <CardContent className='p-8 text-base prose prose-sm max-w-none dark:prose-invert leading-loose text-zinc-800 dark:text-zinc-200'>
+                <ReactMarkdown>{presentationReport}</ReactMarkdown>
+              </CardContent>
+            )}
           </Card>
         )}
 
@@ -787,18 +837,34 @@ export function SummaryView({ readOnly = false }: { readOnly?: boolean }) {
         {report && (
           <Card className='border-2 border-primary shadow-[4px_4px_0px_0px_rgba(0,0,0,0.1)] overflow-hidden'>
             <CardHeader className='bg-primary text-primary-foreground py-3'>
-              <CardTitle className='text-sm font-bold uppercase tracking-widest flex items-center gap-2'>
-                <FileText className='w-4 h-4' />
-                Formal Clinical Clerkship
-              </CardTitle>
+              <div className='flex items-center justify-between gap-2'>
+                <CardTitle className='text-sm font-bold uppercase tracking-widest flex items-center gap-2'>
+                  <FileText className='w-4 min-w-4 h-4' />
+                  Formal Clinical Clerkship
+                </CardTitle>
+                <Button
+                  variant='ghost'
+                  size='sm'
+                  className='h-7 px-2 text-primary-foreground/70 hover:text-primary-foreground hover:bg-primary-foreground/10'
+                  onClick={() => setReportCollapsed((c) => !c)}
+                >
+                  {reportCollapsed ? (
+                    <ChevronDown className='w-4 h-4' />
+                  ) : (
+                    <ChevronUp className='w-4 h-4' />
+                  )}
+                </Button>
+              </div>
             </CardHeader>
-            <CardContent className='p-6 text-sm prose prose-xs max-w-none dark:prose-invert bg-white dark:bg-zinc-950 leading-relaxed'>
-              <ReactMarkdown>{report}</ReactMarkdown>
-            </CardContent>
+            {!reportCollapsed && (
+              <CardContent className='p-6 text-sm prose prose-sm max-w-none dark:prose-invert bg-white dark:bg-zinc-950 leading-relaxed'>
+                <ReactMarkdown>{report}</ReactMarkdown>
+              </CardContent>
+            )}
           </Card>
         )}
 
-        {/* AI Differentials Output */}
+        {/* Differentials */}
         <DifferentialSection differentials={session.differentials} />
 
         {/* Data Review Grid */}
@@ -808,7 +874,7 @@ export function SummaryView({ readOnly = false }: { readOnly?: boolean }) {
             icon={<User className='w-4 h-4' />}
             content={
               session.biodata ? (
-                <div className='text-xs space-y-1'>
+                <div className='text-sm space-y-1'>
                   <p>
                     <strong>Name:</strong> {session.biodata.name || '---'}
                   </p>
@@ -921,9 +987,9 @@ function DifferentialSection({
 
   return (
     <Card className='border-2 border-primary shadow-[4px_4px_0px_0px_rgba(0,0,0,0.1)] overflow-hidden'>
-      <CardHeader className='bg-zinc-950 dark:bg-zinc-900 text-white py-3 border-b-2 border-primary'>
+      <CardHeader className='bg-linear-to-r from-primary to-primary/70 text-primary-foreground py-3 border-b-2 border-primary'>
         <CardTitle className='text-sm font-bold uppercase tracking-widest flex items-center gap-2'>
-          <AlertCircle className='w-4 h-4 text-primary' />
+          <AlertCircle className='w-4 min-w-4 h-4' />
           Differential Diagnoses & Score Match
         </CardTitle>
       </CardHeader>
@@ -942,10 +1008,10 @@ function DifferentialSection({
               <AccordionTrigger className='hover:no-underline px-4 sm:px-6 py-4'>
                 <div className='flex flex-col gap-4 w-full pr-4 text-left'>
                   <div className='flex items-start gap-3'>
-                    <span className='flex shrink-0 items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-primary text-[10px] font-black mt-0.5'>
+                    <span className='flex shrink-0 items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-black mt-0.5'>
                       {i + 1}
                     </span>
-                    <span className='font-bold tracking-tight text-sm uppercase leading-tight'>
+                    <span className='font-bold tracking-tight text-base uppercase leading-tight'>
                       {diff.diagnosis}
                     </span>
                   </div>
@@ -958,7 +1024,7 @@ function DifferentialSection({
                     </div>
                     <Badge
                       variant='outline'
-                      className='font-black text-[10px] border-primary/20 text-primary whitespace-nowrap'
+                      className='font-black text-xs border-primary/20 text-primary whitespace-nowrap'
                     >
                       {Math.round((diff.confidence || 0.5) * 100)}% MATCH
                     </Badge>
@@ -967,11 +1033,11 @@ function DifferentialSection({
               </AccordionTrigger>
               <AccordionContent className='px-4 sm:px-6 pb-6'>
                 <div className='bg-muted/30 p-4 border-l-4 border-primary space-y-2'>
-                  <p className='text-[10px] font-black uppercase text-muted-foreground tracking-widest flex items-center gap-2'>
+                  <p className='text-xs font-black uppercase text-muted-foreground tracking-widest flex items-center gap-2'>
                     <Activity className='w-3 h-3' />
                     Clinical Reasoning
                   </p>
-                  <p className='text-xs leading-relaxed italic'>
+                  <p className='text-sm leading-relaxed italic'>
                     {diff.reasoning}
                   </p>
                 </div>
@@ -996,7 +1062,7 @@ function SummaryCard({
   return (
     <Card className='h-full border-2 border-border/50 rounded-none shadow-none hover:border-primary/50 transition-colors'>
       <CardHeader className='py-4 px-5 flex flex-row items-center justify-between space-y-0 pb-3 border-b border-border/10'>
-        <CardTitle className='text-[11px] font-bold uppercase tracking-widest'>
+        <CardTitle className='text-sm font-bold uppercase tracking-widest'>
           {title}
         </CardTitle>
         <div className='text-muted-foreground/40'>{icon}</div>

@@ -71,10 +71,10 @@ export function SiteHeader() {
             {breadcrumbs.map((crumb, index) => (
               <React.Fragment key={crumb.href}>
                 <BreadcrumbItem
-                  className={index > 0 ? 'hidden md:inline-flex' : ''}
+                  className={index > 0 ? 'inline-flex' : ''}
                 >
                   {crumb.isLast ? (
-                    <BreadcrumbPage className='font-bold uppercase tracking-tight text-xs'>
+                    <BreadcrumbPage className='font-bold uppercase tracking-tight text-xs hidden sm:inline-flex'>
                       {crumb.label}
                     </BreadcrumbPage>
                   ) : (
@@ -88,7 +88,7 @@ export function SiteHeader() {
                 </BreadcrumbItem>
                 {!crumb.isLast && (
                   <BreadcrumbSeparator
-                    className={index > 0 ? 'hidden md:inline-flex' : ''}
+                    className={index > 0 ? 'hidden sm:inline-flex' : ''}
                   />
                 )}
               </React.Fragment>

@@ -87,6 +87,7 @@ function SessionStartContent() {
     goToStage,
     isAnalyzing,
     isSaving,
+    isHydrating,
     status,
     sessionId,
   } = useSession();
@@ -97,6 +98,20 @@ function SessionStartContent() {
       window.location.href = `/dashboard/sessions/${sessionId}`;
     }
   }, [status, sessionId]);
+
+  // Show a neutral loading state while DB data is being fetched on mount
+  if (isHydrating) {
+    return (
+      <div className='flex items-center justify-center min-h-[60vh]'>
+        <div className='text-center space-y-3'>
+          <div className='w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto' />
+          <p className='text-xs font-bold uppercase tracking-widest text-muted-foreground'>
+            Restoring session…
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   const stageConfig = STAGE_CONFIG[currentStage as keyof typeof STAGE_CONFIG];
 
