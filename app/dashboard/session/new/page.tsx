@@ -19,7 +19,7 @@ import { useSession } from '@/lib/SessionContext';
 
 export default function NewSessionPage() {
   const router = useRouter();
-  const { mode } = useSession();
+  const { mode, isUserLoading } = useSession();
   const [showResumeDialog, setShowResumeDialog] = React.useState(false);
   const [hasExistingData, setHasExistingData] = React.useState(false);
   const [isCheckingPreferences, setIsCheckingPreferences] =
@@ -27,6 +27,8 @@ export default function NewSessionPage() {
 
   // Check for existing data on mount
   React.useEffect(() => {
+    if (isUserLoading) return;
+
     // If the stored session is already COMPLETED, treat it as no active session.
     // The End Session flow persists to DB and then clears localStorage, but as a
     // safety net we also ignore COMPLETED data here so the modal never appears.
@@ -79,7 +81,7 @@ export default function NewSessionPage() {
         setIsCheckingPreferences(false);
       }
     }
-  }, [mode, router]);
+  }, [mode, router, isUserLoading]);
 
   if (isCheckingPreferences) {
     return (
@@ -140,7 +142,7 @@ export default function NewSessionPage() {
   };
 
   return (
-    <div className='flex flex-col flex-1 max-w-4xl mx-auto p-6 md:p-12 space-y-10'>
+    <div className='flex flex-col flex-1 max-w-5xl mx-auto p-6 md:p-12 space-y-10'>
       <div className='space-y-4 text-center md:text-left'>
         <div className='inline-block px-3 py-1 bg-primary/10 border border-primary/20 text-primary text-[10px] font-bold uppercase tracking-[0.2em]'>
           Session Configuration

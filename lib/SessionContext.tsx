@@ -74,6 +74,7 @@ interface SessionContextType {
   maxStageIndex: number;
   isAnalyzing: boolean;
   isHydrating: boolean;
+  isUserLoading: boolean;
   sessionId: string | null;
   setSessionId: (id: string | null) => void;
   loadSessionFromDb: (id: string) => Promise<void>;
@@ -131,6 +132,7 @@ const STORAGE_KEYS = {
   DIFFERENTIALS: 'hx-pal-differentials',
   STATUS: 'hx-pal-status',
   SESSION_ID: 'hx-pal-session-id',
+  USER_ID: 'hx-pal-user-id',
 };
 
 // Helper functions for localStorage
@@ -232,6 +234,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isHydrating, setIsHydrating] = useState(false);
+  const [isUserLoading, setIsUserLoading] = useState(true);
   const [maxStageIndex, setMaxStageIndex] = useState<number>(() =>
     loadFromStorage<number>(STORAGE_KEYS.MAX_STAGE, 0),
   );
@@ -465,8 +468,40 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   }, [sessionId]);
 
   const refreshUser = useCallback(async () => {
-    const freshUser = await getCurrentUser();
-    setUser(freshUser);
+    setIsUserLoading(true);
+    try {
+      const freshUser = await getCurrentUser();
+      if (freshUser) {
+        const storedUserId = loadFromStorage<string | null>(
+          STORAGE_KEYS.USER_ID,
+          null,
+        );
+        if (storedUserId && storedUserId !== freshUser.id) {
+          // Different user logged in on the same browser — wipe all session data
+          // so they start clean and can't see the previous user's session.
+          window.localStorage.clear();
+          setSessionId(null);
+          setCurrentStage('BIODATA');
+          setModeState('ASK');
+          setStatusState('ACTIVE');
+          setBiodataState(null);
+          setPresentingComplaintsState([]);
+          setHpcDataState({});
+          setPmhDataState('');
+          setDhDataState('');
+          setFhDataState('');
+          setShDataState('');
+          setRosDataState({});
+          setDifferentialsState([]);
+          setMaxStageIndex(0);
+        }
+        // Always record the current user ID so we can detect a switch next time.
+        forceToStorage(STORAGE_KEYS.USER_ID, freshUser.id);
+      }
+      setUser(freshUser);
+    } finally {
+      setIsUserLoading(false);
+    }
   }, []);
 
   // Load user on mount
@@ -854,6 +889,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       setIsAnalyzing,
       isSaving,
       isHydrating,
+      isUserLoading,
       refreshUser,
       sessionId,
       setSessionId,
@@ -896,14 +932,15 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       isAnalyzing,
       isSaving,
       isHydrating,
+      isUserLoading,
       refreshUser,
       sessionId,
       loadSessionFromDb,
       saveCurrentSession,
-      differentials,
       status,
       setStatus,
       endSession,
+      isUserLoading,
     ],
   );
 
