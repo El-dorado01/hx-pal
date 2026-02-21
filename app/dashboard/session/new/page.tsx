@@ -173,6 +173,8 @@ export default function NewSessionPage() {
           description='A comprehensive clinical guide that walks you through every stage with direct prompts and structured assistance.'
           icon={Bot}
           primary
+          disabled
+          comingSoon
           onClick={() => handleSelectMode('ASSISTED')}
         />
       </div>

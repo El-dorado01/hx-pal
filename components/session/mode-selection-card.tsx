@@ -11,6 +11,8 @@ interface ModeSelectionCardProps {
   icon: React.ComponentType<any>;
   onClick: () => void;
   primary?: boolean;
+  disabled?: boolean;
+  comingSoon?: boolean;
 }
 
 export function ModeSelectionCard({
@@ -19,18 +21,25 @@ export function ModeSelectionCard({
   icon: Icon,
   onClick,
   primary = false,
+  disabled = false,
+  comingSoon = false,
 }: ModeSelectionCardProps) {
   return (
     <motion.div
-      whileHover={{ scale: 1.02, translateY: -2 }}
-      whileTap={{ scale: 0.98 }}
-      className={`group relative flex flex-col items-center justify-between p-6 border-2 transition-all cursor-pointer rounded-none h-full ${
+      className={`group relative flex flex-col items-center justify-between p-6 border-2 transition-all rounded-none h-full ${
+        disabled ? 'opacity-50 grayscale pointer-events-none' : 'cursor-pointer'
+      } ${
         primary
           ? 'border-primary bg-primary/5 hover:bg-primary/10 shadow-[4px_4px_0px_0px_rgba(var(--primary),0.1)]'
           : 'border-border bg-background hover:border-primary/50 hover:bg-muted/50 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.05)]'
       }`}
-      onClick={onClick}
+      onClick={disabled ? undefined : onClick}
     >
+      {comingSoon && (
+        <div className='absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-primary text-[10px] font-black uppercase tracking-widest text-primary-foreground z-10 animate-pulse'>
+          Coming Soon
+        </div>
+      )}
       <div className='flex flex-col items-center text-center space-y-4 w-full'>
         <div
           className={`p-3 rounded-none ${
@@ -57,9 +66,10 @@ export function ModeSelectionCard({
       <Button
         variant={primary ? 'default' : 'outline'}
         size='sm'
+        disabled={disabled}
         className='mt-4 w-full rounded-none font-semibold uppercase tracking-wider text-xs'
       >
-        Select
+        {comingSoon ? 'Unavailable' : 'Select'}
       </Button>
 
       {/* Decorative corner element */}
